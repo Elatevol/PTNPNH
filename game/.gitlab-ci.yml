@@ -1,0 +1,17 @@
+# GitLab Pages deployment for the PTN PNH game.
+# GitLab Pages (unlike GitHub Pages) doesn't serve a branch directly - it
+# needs a CI job named "pages" that outputs the site into a "public/" folder
+# as a build artifact. This job just copies the static game files there.
+
+pages:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - mkdir -p public
+    - cp -r assets public/
+    - cp index.html public/
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

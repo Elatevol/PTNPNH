@@ -4,10 +4,10 @@
 
 | Частина | Що це | Де хоститься |
 |---|---|---|
-| `game/` | HTML5-гра (index.html + assets/) | Статичний хостинг, напр. **GitHub Pages** |
+| `game/` | HTML5-гра (index.html + assets/) | Статичний хостинг, напр. **GitLab Pages** |
 | `bot/`  | Node.js-сервер бота (тримає токен, викликає `setGameScore`) | Сервер, що постійно працює — напр. **Render.com** |
 
-GitHub Pages не вміє запускати серверний код і не може безпечно зберігати токен бота, тому боту потрібен окремий хостинг. Гра ж — це просто статичні файли.
+GitLab Pages не вміє запускати серверний код і не може безпечно зберігати токен бота, тому боту потрібен окремий хостинг. Гра ж — це просто статичні файли.
 
 ---
 
@@ -23,25 +23,30 @@ GitHub Pages не вміє запускати серверний код і не 
 
 ---
 
-## Крок 2. Викласти гру на GitHub Pages
+## Крок 2. Викласти гру на GitLab Pages
+
+У папці `game/` вже лежить `index.html`, `assets/` і готовий `.gitlab-ci.yml` — GitLab на відміну від GitHub не публікує гілку напряму, а вимагає CI-джобу з назвою `pages`, яка складає сайт у папку `public/`. Цей файл уже все робить сам, нічого додатково писати не треба.
 
 ```bash
-# у папці game/ вже лежить index.html + assets/
+# у папці game/ вже лежить index.html + assets/ + .gitlab-ci.yml
 cd game
 git init
 git add .
 git commit -m "PTN PNH game"
 git branch -M main
-git remote add origin https://github.com/ВАШ_НІК/ptn-pnh-game.git
+git remote add origin https://gitlab.com/ВАШ_НІК/ptn-pnh-game.git
 git push -u origin main
 ```
 
-Потім у репозиторії: **Settings → Pages → Source: main branch, / (root)** → Save.
-Через хвилину гра буде доступна за адресою типу:
+Після push GitLab автоматично запустить пайплайн (**CI/CD → Pipelines** в інтерфейсі проєкту — можна спостерігати процес наживо). Коли джоба `pages` позеленіє, зайдіть у **Settings → Pages** — там зʼявиться посилання на сайт, зазвичай такого вигляду:
 
 ```
-https://ВАШ_НІК.github.io/ptn-pnh-game/index.html
+https://ВАШ_НІК.gitlab.io/ptn-pnh-game/index.html
 ```
+
+(Якщо проєкт створено у групі, адреса буде `https://ВАШ_НІК.gitlab.io/ГРУПА/ptn-pnh-game/index.html`.)
+
+Перше розгортання може зайняти кілька хвилин; наступні деплої після кожного `git push` — швидші.
 
 Це і є ваш `GAME_URL`.
 
@@ -85,7 +90,7 @@ const SCORE_ENDPOINT = 'https://YOUR-BACKEND-URL.example.com/api/score';
 const SCORE_ENDPOINT = 'https://ptn-pnh-bot.onrender.com/api/score';
 ```
 
-Закомітьте й запуште зміну — GitHub Pages оновиться автоматично.
+Закомітьте й запуште зміну — GitLab автоматично перезапустить пайплайн і оновить Pages.
 
 ---
 
