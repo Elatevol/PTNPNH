@@ -357,6 +357,9 @@
   };
 
   const KILLS_PER_LEVEL = 5;
+  // Reserve space at the bottom for the joystick/fire button overlay - worms
+  // and bosses should spawn above this line, not underneath the controls.
+  const CONTROL_ZONE_H = 130;
   function enemyCountForLevel(level){ return Math.min(3 + Math.floor(level*0.8), 10); }
   // Grows fast early (so the game clearly ramps up) but approaches a hard
   // ceiling of 1 + SPEED_MAX_BONUS (~3.4x) instead of climbing forever - past
@@ -500,7 +503,7 @@
       points: def.points,
       w: def.w, h: def.h,
       x: 20 + i*spacing + Math.random()*10,
-      y: H - 60 - (i%3)*26,
+      y: H - CONTROL_ZONE_H - (i%3)*26,
       dir: Math.random() < 0.5 ? -1 : 1,
       speed: (def.speed[0] + Math.random()*(def.speed[1]-def.speed[0])) * mult,
       riseSpeed: def.riseSpeed,
@@ -532,7 +535,7 @@
       hp: Math.round(baseHp*tpl.hpMult), maxHp: Math.round(baseHp*tpl.hpMult),
       w, h,
       x: W/2 - w/2,
-      y: H - h - 10,   // starts at the bottom, like regular worms
+      y: H - CONTROL_ZONE_H - h,   // starts above the control zone, like regular worms
       dir: Math.random()<0.5?-1:1,
       speed: (60 + tier*10) * tpl.speedMult,
       riseSpeed: (11 + Math.min(tier,5)*2.2 + Math.max(0,tier-5)*0.5) * tpl.riseMult,   // creeps upward from the bottom - growth tapers off past boss 5
@@ -1255,7 +1258,7 @@
         if(enemies.length < maxBoardForLevel(level)){
           const fresh = makeEnemy(0, 1, level);
           fresh.x = Math.random()*(W-fresh.w);
-          fresh.y = H - 20;
+          fresh.y = H - CONTROL_ZONE_H;
           enemies.push(fresh);
         }
       }
@@ -1324,7 +1327,7 @@
         const def = ENEMY_TYPES.fast;
         enemies.push({
           type:'fast', hp:def.hp, maxHp:def.hp, points:def.points, w:def.w, h:def.h,
-          x: Math.random()*(W-def.w), y: H-20,
+          x: Math.random()*(W-def.w), y: H-CONTROL_ZONE_H,
           dir: Math.random()<0.5?-1:1,
           speed: def.speed[0]+Math.random()*(def.speed[1]-def.speed[0]),
           riseSpeed: def.riseSpeed, rushCooldown: 2.5+Math.random()*3, rushing:0,
@@ -1414,7 +1417,7 @@
           arr.splice(ei,1); // a boss-fight minion - don't respawn, the boss handles its own spawns
         } else {
           const fresh = makeEnemy(0, 1, level);
-          Object.assign(e, fresh, { x: Math.random()*(W-fresh.w), y: H - 40 - Math.random()*40 });
+          Object.assign(e, fresh, { x: Math.random()*(W-fresh.w), y: H - CONTROL_ZONE_H - Math.random()*40 });
         }
         if(boss && arr !== enemies) break; // this array is now stale (a new wave/boss started) - stop touching it
         continue;
@@ -1446,7 +1449,7 @@
                 const fresh = makeEnemy(0, 1, level);
                 Object.assign(e, fresh, {
                   x: Math.random()*(W-fresh.w),
-                  y: H - 40 - Math.random()*40
+                  y: H - CONTROL_ZONE_H - Math.random()*40
                 });
               }
             }
