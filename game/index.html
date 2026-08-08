@@ -48,17 +48,20 @@
     display:flex; align-items:center; justify-content:center; }
   #adSimBox{ display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:24px; }
   #adSimTimer{ font-size:48px; font-weight:bold; color:#5cf; }
-  #controls{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+  #controls{ display:flex; justify-content:space-between; align-items:center; padding:14px 24px calc(14px + env(safe-area-inset-bottom));
     border-top:1px solid var(--line); flex-shrink:0; gap:12px; background:#0d0d0d; }
-  #dpad{ display:flex; flex-direction:column; align-items:center; gap:5px; }
-  .dpad-row{ display:flex; gap:5px; }
-  .btn{ width:64px; height:56px; background:#161616; border:1px solid var(--line); border-radius:4px;
-    display:flex; align-items:center; justify-content:center; color:var(--text); font-size:22px; }
-  .btn:active, .btn.active{ background:var(--line); border-color:var(--accent); color:var(--accent); }
-  .dpad-btn{ width:46px; height:40px; font-size:18px; }
-  #fireBtn{ width:84px; height:56px; background:linear-gradient(180deg, #2a1010, #161616);
-    border:1px solid #3a1414; color:var(--accent-2); font-size:12px; letter-spacing:2px; font-weight:bold; border-radius:4px; }
-  #fireBtn:active{ background:var(--accent-2); color:#1a0000; border-color:var(--accent-2); }
+  #joystickBase{ position:relative; width:96px; height:96px; border-radius:50%;
+    background:radial-gradient(circle at 50% 40%, #1c1c1c, #0f0f0f); border:1px solid var(--line);
+    touch-action:none; }
+  #joystickKnob{ position:absolute; top:50%; left:50%; width:44px; height:44px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #3a3a3a, #161616); border:1px solid var(--accent);
+    margin:-22px 0 0 -22px; box-shadow:0 0 8px rgba(255,207,63,0.35); pointer-events:none; }
+  #fireBtnRound{ width:96px; height:96px; border-radius:50%;
+    background:radial-gradient(circle at 50% 40%, #3a1010, #1a0808); border:1px solid var(--accent-2);
+    display:flex; align-items:center; justify-content:center; color:var(--accent-2);
+    font-size:13px; letter-spacing:2px; font-weight:bold; touch-action:none; }
+  #fireBtnRound:active, #fireBtnRound.active{ background:radial-gradient(circle at 50% 40%, var(--accent-2), #7a1010);
+    color:#1a0000; box-shadow:0 0 14px rgba(255,77,77,0.6); }
   #syncMsg{ position:absolute; top:52px; left:0; right:0; text-align:center; font-size:10px;
     color:var(--text-dim); letter-spacing:1px; pointer-events:none; }
   #danger{ position:absolute; inset:0; pointer-events:none; box-shadow: inset 0 0 0 0 rgba(255,40,40,0);
@@ -123,15 +126,10 @@
   </div>
 
   <div id="controls">
-    <div id="dpad">
-      <div class="btn dpad-btn" id="upBtn">▲</div>
-      <div class="dpad-row">
-        <div class="btn dpad-btn" id="leftBtn">◀</div>
-        <div class="btn dpad-btn" id="downBtn">▼</div>
-        <div class="btn dpad-btn" id="rightBtn">▶</div>
-      </div>
+    <div id="joystickBase">
+      <div id="joystickKnob"></div>
     </div>
-    <div id="fireBtn">FIRE</div>
+    <div id="fireBtnRound">FIRE</div>
   </div>
 </div>
 
@@ -707,25 +705,60 @@
     el.addEventListener('mouseup', up);
     el.addEventListener('mouseleave', up);
   }
-  bindHold(document.getElementById('leftBtn'),
-    ()=>{keys.left=true; document.getElementById('leftBtn').classList.add('active');},
-    ()=>{keys.left=false; document.getElementById('leftBtn').classList.remove('active');});
-  bindHold(document.getElementById('rightBtn'),
-    ()=>{keys.right=true; document.getElementById('rightBtn').classList.add('active');},
-    ()=>{keys.right=false; document.getElementById('rightBtn').classList.remove('active');});
-  bindHold(document.getElementById('upBtn'),
-    ()=>{keys.up=true; document.getElementById('upBtn').classList.add('active');},
-    ()=>{keys.up=false; document.getElementById('upBtn').classList.remove('active');});
-  bindHold(document.getElementById('downBtn'),
-    ()=>{keys.down=true; document.getElementById('downBtn').classList.add('active');},
-    ()=>{keys.down=false; document.getElementById('downBtn').classList.remove('active');});
 
-  const fireBtn = document.getElementById('fireBtn');
+  // Round analog joystick - drag the knob within the base, it snaps back to
+  // center on release. Gives smooth proportional movement instead of the
+  // old on/off D-pad buttons.
+  let joyX = 0, joyY = 0;
+  (function setupJoystick(){
+    const base = document.getElementById('joystickBase');
+    const knob = document.getElementById('joystickKnob');
+    let active = false, center = {x:0,y:0};
+    const RADIUS = 34;
+
+    function pointerPos(e){
+      const t = e.touches && e.touches.length ? e.touches[0] : e;
+      return { x: t.clientX, y: t.clientY };
+    }
+    function start(e){
+      e.preventDefault();
+      active = true;
+      const rect = base.getBoundingClientRect();
+      center = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+      move(e);
+    }
+    function move(e){
+      if(!active) return;
+      e.preventDefault();
+      const p = pointerPos(e);
+      let dx = p.x - center.x, dy = p.y - center.y;
+      const dist = Math.hypot(dx, dy);
+      if(dist > RADIUS){ dx = dx/dist*RADIUS; dy = dy/dist*RADIUS; }
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      joyX = dx / RADIUS;
+      joyY = dy / RADIUS;
+    }
+    function end(e){
+      if(e) e.preventDefault();
+      active = false;
+      joyX = 0; joyY = 0;
+      knob.style.transform = 'translate(0,0)';
+    }
+    base.addEventListener('touchstart', start, {passive:false});
+    base.addEventListener('touchmove', move, {passive:false});
+    base.addEventListener('touchend', end, {passive:false});
+    base.addEventListener('touchcancel', end, {passive:false});
+    base.addEventListener('mousedown', start);
+    window.addEventListener('mousemove', (e)=>{ if(active) move(e); });
+    window.addEventListener('mouseup', end);
+  })();
+
+  const fireBtn = document.getElementById('fireBtnRound');
   bindHold(fireBtn,
     ()=>{ fireHeld = true; fireBtn.classList.add('active'); },
     ()=>{ fireHeld = false; fireBtn.classList.remove('active'); });
 
-  // Tap/hold anywhere on the play area to fire - the D-pad fire button still
+  // Tap/hold anywhere on the play area to fire - the round fire button still
   // works too, this just makes the whole screen a trigger.
   bindHold(canvas,
     ()=>{ fireHeld = true; },
@@ -1263,7 +1296,7 @@
     let dir = 0;
     if(keys.left) dir -= 1;
     if(keys.right) dir += 1;
-    dir = Math.max(-1, Math.min(1, dir + tiltX));
+    dir = Math.max(-1, Math.min(1, dir + tiltX + joyX));
     player.x += dir * player.speed * dt;
     if(player.x < 0) player.x = 0;
     if(player.x > W - player.w) player.x = W - player.w;
@@ -1271,7 +1304,7 @@
     let dirY = 0;
     if(keys.up) dirY -= 1;
     if(keys.down) dirY += 1;
-    dirY = Math.max(-1, Math.min(1, dirY + tiltY));
+    dirY = Math.max(-1, Math.min(1, dirY + tiltY + joyY));
     player.y += dirY * player.speed * dt;
     const minY = 10, maxY = H*0.42; // stays an aerial defender - can dip down but not join the worms
     if(player.y < minY) player.y = minY;
