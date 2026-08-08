@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>ПТН ПНХ</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://telegram.org/js/games.js"></script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+<style>
+  :root{
+    --bg-0:#0a0e0a; --line:#2a1414; --accent:#ffcf3f; --accent-2:#ff4d4d;
+    --text:#eef2ea; --text-dim:#9a8a7a; --boss:#ff3fd6;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; background:var(--bg-0);
+    font-family:'Courier New', ui-monospace, monospace; color:var(--text); touch-action:none; }
+  #wrap{ position:fixed; inset:0; display:flex; flex-direction:column; background:#0a0e0a; }
+  #hud{ display:flex; justify-content:space-between; align-items:center; padding:10px 14px;
+    border-bottom:1px solid var(--line); letter-spacing:1px; font-size:13px; flex-shrink:0; background:#0d0d0d; gap:6px; }
+  #hud .label{color:var(--text-dim); font-size:10px; letter-spacing:2px; text-transform:uppercase;}
+  #hud .val{color:var(--accent); font-size:18px; font-weight:bold;}
+  #hud .lvl{color:var(--accent-2); font-size:18px; font-weight:bold;}
+  #shields{ display:flex; gap:4px; }
+  .shield-dot{ width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 4px var(--accent); }
+  .shield-dot.lost{ background:#333; box-shadow:none; }
+  #stage{ position:relative; flex:1; min-height:0; }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #bossBarWrap{ position:absolute; top:8px; left:50%; transform:translateX(-50%); width:70%; max-width:340px;
+    height:10px; background:#1a0a14; border:1px solid var(--boss); border-radius:5px; overflow:hidden; display:none; }
+  #bossBar{ height:100%; width:100%; background:var(--boss); transition:width 0.15s linear; }
+  #bossLabel{ position:absolute; top:20px; left:50%; transform:translateX(-50%); font-size:9px;
+    letter-spacing:3px; color:var(--boss); display:none; }
+  #overlay{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; background:rgba(5,5,5,0.9); text-align:center; padding:24px; }
+  #overlay.hidden{display:none;}
+  #overlay h1{ margin:0; font-size:15px; letter-spacing:4px; color:var(--accent-2); text-transform:uppercase; }
+  #overlay .big{ font-size:36px; color:var(--text); letter-spacing:2px; margin:0; }
+  #overlay .sub{ color:var(--text-dim); font-size:12px; letter-spacing:1px; max-width:290px; line-height:1.6;}
+  #btnRow{ display:flex; flex-direction:column; gap:10px; margin-top:6px; align-items:center; }
+  #startBtn, #shareBtn, #watchAdBtn, #shareShieldBtn{ background:var(--accent); color:#1a1400; border:none; padding:14px 28px;
+    font-family:inherit; font-weight:bold; letter-spacing:2px; font-size:13px; text-transform:uppercase;
+    border-radius:2px; cursor:pointer; }
+  #shareBtn{ background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  #watchAdBtn{ background:transparent; color:#5cf; border:1px solid #5cf; }
+  #shareShieldBtn{ background:transparent; color:#5cff8f; border:1px solid #5cff8f; }
+  #startBtn:active, #shareBtn:active, #watchAdBtn:active, #shareShieldBtn:active{ transform:translateY(1px); }
+  #adSimOverlay{ position:absolute; inset:0; z-index:50; background:rgba(0,0,0,0.94);
+    display:flex; align-items:center; justify-content:center; }
+  #adSimBox{ display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:24px; }
+  #adSimTimer{ font-size:48px; font-weight:bold; color:#5cf; }
+  #controls{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line); flex-shrink:0; gap:12px; background:#0d0d0d; }
+  #dpad{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .dpad-row{ display:flex; gap:5px; }
+  .btn{ width:64px; height:56px; background:#161616; border:1px solid var(--line); border-radius:4px;
+    display:flex; align-items:center; justify-content:center; color:var(--text); font-size:22px; }
+  .btn:active, .btn.active{ background:var(--line); border-color:var(--accent); color:var(--accent); }
+  .dpad-btn{ width:46px; height:40px; font-size:18px; }
+  #fireBtn{ width:84px; height:56px; background:linear-gradient(180deg, #2a1010, #161616);
+    border:1px solid #3a1414; color:var(--accent-2); font-size:12px; letter-spacing:2px; font-weight:bold; border-radius:4px; }
+  #fireBtn:active{ background:var(--accent-2); color:#1a0000; border-color:var(--accent-2); }
+  #syncMsg{ position:absolute; top:52px; left:0; right:0; text-align:center; font-size:10px;
+    color:var(--text-dim); letter-spacing:1px; pointer-events:none; }
+  #danger{ position:absolute; inset:0; pointer-events:none; box-shadow: inset 0 0 0 0 rgba(255,40,40,0);
+    transition: box-shadow 0.08s linear; }
+  #heatWrap{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+    width:120px; height:6px; background:#1a1a1a; border:1px solid var(--line); border-radius:3px; overflow:hidden; }
+  #heatBar{ height:100%; width:0%; background:var(--accent-2); transition:width 0.08s linear, background 0.15s linear; }
+  #heatLabel{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+    font-size:9px; letter-spacing:2px; color:var(--accent-2); opacity:0; transition:opacity 0.15s; }
+  #heatLabel.show{ opacity:1; }
+  #debugPanel{ position:absolute; top:8px; left:8px; z-index:20;
+    background:rgba(10,14,10,0.85); border:1px solid #5cf; border-radius:4px;
+    padding:6px; display:flex; flex-wrap:wrap; gap:4px; max-width:150px; align-items:center; }
+  #debugPanel input{ width:44px; background:#111; color:#5cf; border:1px solid #5cf;
+    border-radius:3px; font-family:inherit; font-size:12px; padding:3px; }
+  #debugPanel button{ background:#5cf; color:#031018; border:none; border-radius:3px;
+    font-family:inherit; font-size:11px; font-weight:bold; padding:4px 7px; cursor:pointer; }
+  .jumpBossBtn{ width:22px; height:22px; font-size:9px; background:#222; color:#5cf;
+    border:1px solid #5cf; border-radius:3px; cursor:pointer; padding:0; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div><span class="label">Score&nbsp;</span><span class="val" id="scoreVal">0</span></div>
+    <div><span class="label">Level&nbsp;</span><span class="lvl" id="lvlVal">1/100</span></div>
+    <div id="shields"><div class="shield-dot"></div><div class="shield-dot"></div><div class="shield-dot"></div><div class="shield-dot"></div></div>
+    <div style="text-align:right"><span class="label">Best&nbsp;</span><span class="val" id="bestVal">0</span></div>
+    <div id="debugBadge" style="display:none; color:#5cf; font-size:10px; letter-spacing:2px;">DEBUG</div>
+  </div>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="danger"></div>
+    <div id="syncMsg"></div>
+    <div id="bossLabel">BOSS</div>
+    <div id="bossBarWrap"><div id="bossBar"></div></div>
+    <div id="heatLabel">OVERHEATED</div>
+    <div id="heatWrap"><div id="heatBar"></div></div>
+    <div id="debugPanel" style="display:none;">
+      <input type="number" id="jumpLevelInput" min="1" max="100" value="1">
+      <button id="jumpLevelBtn">Jump</button>
+      <div id="jumpBossRow"></div>
+    </div>
+    <div id="overlay">
+      <h1 id="ovTitle">Defend the sky</h1>
+      <p class="big" id="ovBig">PTN PNH</p>
+      <p class="sub" id="ovSub">The drone moves in every direction. Worm slime can be shot down with a grenade in flight. Bosses climb no higher than 70% of the screen. 4 shields, 5 kills per level, every 10th level is a unique boss, and the final one at level 100 is a rat. Run out of shields and you get one revive by sharing with a friend, then one more by watching an ad.</p>
+      <div id="btnRow">
+        <button id="startBtn">Start</button>
+        <button id="shareShieldBtn" style="display:none;">📤 Share with a friend · +1 shield</button>
+        <button id="watchAdBtn" style="display:none;">▶ Watch ad · +1 shield</button>
+        <button id="shareBtn" style="display:none;">Share</button>
+      </div>
+    </div>
+    <div id="adSimOverlay" style="display:none;">
+      <div id="adSimBox">
+        <div class="label" style="letter-spacing:3px;">TEST AD</div>
+        <div id="adSimTimer">3</div>
+        <div class="sub" style="max-width:220px;">Simulated ad — plug in your real Adsgram blockId to replace this.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div id="dpad">
+      <div class="btn dpad-btn" id="upBtn">▲</div>
+      <div class="dpad-row">
+        <div class="btn dpad-btn" id="leftBtn">◀</div>
+        <div class="btn dpad-btn" id="downBtn">▼</div>
+        <div class="btn dpad-btn" id="rightBtn">▶</div>
+      </div>
+    </div>
+    <div id="fireBtn">FIRE</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // =====================================================================
+  // TELEGRAM INTEGRATION
+  // =====================================================================
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready(); tg.expand();
+    try { tg.setBackgroundColor('#0a0e0a'); } catch(e){}
+    try { tg.setHeaderColor('#0a0e0a'); } catch(e){}
+  }
+
+  const SCORE_ENDPOINT = 'https://YOUR-BACKEND-URL.example.com/api/score';
+
+  // =====================================================================
+  // SHARE-FOR-SHIELD - the first time you run out of shields, sharing the
+  // game with a friend (instead of watching an ad) revives you with +1
+  // shield. Set this to your bot's public game link once deployed.
+  // =====================================================================
+  const SHARE_URL = 'https://t.me/YOUR_BOT_USERNAME';
+  const SHARE_TEXT = 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score!';
+
+  function openShareSheet(){
+    const url = 'https://t.me/share/url?url=' + encodeURIComponent(SHARE_URL) + '&text=' + encodeURIComponent(SHARE_TEXT);
+    if(tg && tg.openTelegramLink){
+      tg.openTelegramLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
+  // We can't get a real "message sent" callback from Telegram's share sheet,
+  // so - like most share-to-unlock flows - we use the standard heuristic:
+  // grant the reward once the player returns to the game after the share
+  // sheet was opened (tab/webview regains focus or becomes visible again).
+  function shareForReward(onReward){
+    let claimed = false;
+    const claim = ()=>{
+      if(claimed) return;
+      claimed = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', claim);
+      onReward();
+    };
+    const onVisible = ()=>{ if(document.visibilityState === 'visible') claim(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', claim);
+    openShareSheet();
+  }
+
+  // =====================================================================
+  // REWARDED ADS (Adsgram) - watch an ad on Game Over to get +1 shield and
+  // resume the run. Get your blockId at https://adsgram.ai (publisher panel).
+  // Until you set a real blockId below, this automatically falls back to a
+  // 3-second simulated "TEST AD" so the reward flow can be tested end-to-end
+  // without an ad account.
+  // =====================================================================
+  const AD_BLOCK_ID = 'YOUR-ADSGRAM-BLOCK-ID';
+  let adController = null;
+  if(window.Adsgram && AD_BLOCK_ID && AD_BLOCK_ID.indexOf('YOUR-') !== 0){
+    try{
+      adController = window.Adsgram.init({ blockId: AD_BLOCK_ID });
+    }catch(e){ console.warn('Adsgram init failed', e); }
+  }
+
+  function showRewardedAd(onReward){
+    if(adController){
+      adController.show().then(()=>{
+        onReward();
+      }).catch((result)=>{
+        console.warn('Ad not rewarded', result);
+      });
+      return;
+    }
+    // --- Fallback: simulated ad, no real network configured yet ---
+    const simOverlay = document.getElementById('adSimOverlay');
+    const simTimer = document.getElementById('adSimTimer');
+    simOverlay.style.display = 'flex';
+    let secs = 3;
+    simTimer.textContent = secs;
+    const iv = setInterval(()=>{
+      secs -= 1;
+      if(secs <= 0){
+        clearInterval(iv);
+        simOverlay.style.display = 'none';
+        onReward();
+      } else {
+        simTimer.textContent = secs;
+      }
+    }, 1000);
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const tgCtx = {
+    user_id: params.get('user_id'),
+    chat_id: params.get('chat_id'),
+    message_id: params.get('message_id'),
+    inline_message_id: params.get('inline_message_id'),
+    sig: params.get('sig')
+  };
+  const isTelegramGame = !!(tgCtx.user_id && tgCtx.sig);
+
+  // TESTING:
+  // ?debug=1  -> reveals the level-jump panel (jump to any level, including
+  //              any boss) so it can be tested with REAL shields and REAL
+  //              weapon overheat, exactly as a player would experience it.
+  // ?god=1    -> ADDITIONALLY makes shields and weapon heat unlimited, for
+  //              when you want to inspect a level without any risk at all.
+  // They're independent - use ?debug=1 alone to test real difficulty level by
+  // level, or ?debug=1&god=1 to combine jumping with full invincibility.
+  const DEBUG_JUMP = params.get('debug') === '1';
+  const DEBUG_INFINITE = params.get('god') === '1';
+  if(DEBUG_JUMP || DEBUG_INFINITE){
+    document.getElementById('debugBadge').style.display = 'block';
+    document.getElementById('debugBadge').textContent = DEBUG_INFINITE ? 'DEBUG · GODMODE' : 'DEBUG';
+  }
+  if(DEBUG_JUMP){
+    document.getElementById('debugPanel').style.display = 'flex';
+    const jumpRow = document.getElementById('jumpBossRow');
+    for(let i=1;i<=10;i++){
+      const btn = document.createElement('button');
+      btn.className = 'jumpBossBtn';
+      btn.textContent = i;
+      btn.title = 'Jump to boss level ' + (i*10);
+      btn.addEventListener('click', ()=> jumpToLevel(i*10));
+      jumpRow.appendChild(btn);
+    }
+    document.getElementById('jumpLevelBtn').addEventListener('click', ()=>{
+      const v = parseInt(document.getElementById('jumpLevelInput').value, 10);
+      if(!isNaN(v)) jumpToLevel(v);
+    });
+  }
+
+  // Also supports a direct deep link: index.html?debug=1&level=42 starts the
+  // run straight at level 42 instead of level 1.
+  function jumpToLevel(n){
+    if(!running){
+      document.getElementById('startBtn').click(); // starts a fresh run at level 1 first
+    }
+    n = Math.max(1, Math.min(LAST_LEVEL, Math.round(n) || 1));
+    level = n;
+    killsThisLevel = 0;
+    boss = null;
+    enemies = [];
+    bullets = [];
+    spits = [];
+    explosions = [];
+    popups = [];
+    document.getElementById('bossBarWrap').style.display = 'none';
+    document.getElementById('bossLabel').style.display = 'none';
+    document.getElementById('lvlVal').textContent = level + '/' + LAST_LEVEL;
+    if(isBossLevel(level)){
+      startBossFight();
+    } else {
+      spawnWave();
+    }
+  }
+
+  function reportScoreToBot(score){
+    if(!isTelegramGame) return;
+    fetch(SCORE_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ...tgCtx, score })
+    }).then(r=>r.json()).then(res=>{
+      document.getElementById('syncMsg').textContent = res && res.ok ? 'Score saved ✓' : '';
+    }).catch(()=>{ document.getElementById('syncMsg').textContent = ''; });
+  }
+
+  const shareBtn = document.getElementById('shareBtn');
+  if(window.TelegramGameProxy){
+    shareBtn.style.display = 'inline-block';
+    shareBtn.addEventListener('click', ()=>{
+      try{ window.TelegramGameProxy.shareScore(); }catch(e){}
+    });
+  }
+
+  // =====================================================================
+  // CANVAS SETUP
+  // =====================================================================
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+
+  let W, H, DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = stage.clientWidth; H = stage.clientHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // =====================================================================
+  // ASSETS
+  // =====================================================================
+  const imgPlayer     = new Image(); imgPlayer.src     = 'assets/drone.png';
+  const imgBullet     = new Image(); imgBullet.src     = 'assets/grenade.png';
+  const imgBg         = new Image(); imgBg.src         = 'assets/redsquare.png';
+  // Enemies are drawn procedurally (see drawWorm) so they can animate -
+  // no static enemy sprite files are used any more.
+
+  const sndLaser = new Audio('assets/laser.wav');
+  const sndBoom  = new Audio('assets/explosion.wav');
+  function playSfx(a, vol){ try{ const c = a.cloneNode(); c.volume = vol!=null?vol:0.6; c.play(); }catch(e){} }
+
+  // =====================================================================
+  // ENEMY TYPE DEFINITIONS
+  // =====================================================================
+  // Worms are drawn procedurally each frame (see drawWorm) so they can
+  // wiggle/crawl instead of sitting as a static image.
+  // "tank" periodically raises a shield (see makeEnemy/update) during which
+  // it cannot be damaged - bullets just spark off it. Time your shots.
+  const PALETTES = {
+    basic:   { body:[176,128,110], dark:[120,80,64],  hi:[230,190,170] },
+    fast:    { body:[140,150,80],  dark:[95,102,50],  hi:[200,210,140] },
+    spitter: { body:[130,160,70],  dark:[80,105,40],  hi:[200,230,120], drip:true },
+    tank:    { body:[128,112,140], dark:[85,70,98],   hi:[190,175,205], spiky:true },
+    tankHit: { body:[148,100,110], dark:[100,60,68],  hi:[210,160,165], spiky:true, cracked:true }
+  };
+  const ENEMY_TYPES = {
+    basic:   { palette:()=>PALETTES.basic,   w:50, h:28, hp:1, points:1, speed:[55,85],   riseSpeed:22 },
+    fast:    { palette:()=>PALETTES.fast,    w:36, h:20, hp:1, points:2, speed:[110,150], riseSpeed:28 },
+    spitter: { palette:()=>PALETTES.spitter, w:46, h:26, hp:1, points:2, speed:[45,65],   riseSpeed:20 },
+    tank:    { palette:(e)=> e.hp>1 ? PALETTES.tank : PALETTES.tankHit,
+               w:64, h:36, hp:2, points:3, speed:[35,50], riseSpeed:16 }
+  };
+
+  const KILLS_PER_LEVEL = 5;
+  function enemyCountForLevel(level){ return Math.min(3 + Math.floor(level*0.8), 10); }
+  // Grows fast early (so the game clearly ramps up) but approaches a hard
+  // ceiling of 1 + SPEED_MAX_BONUS (~3.4x) instead of climbing forever - past
+  // a certain point worms stay dangerous but never become physically
+  // impossible to react to.
+  const SPEED_MAX_BONUS = 2.4;
+  const SPEED_GROWTH = 30;
+  function speedMultForLevel(level){
+    return 1 + SPEED_MAX_BONUS * (1 - Math.exp(-(level-1)/SPEED_GROWTH));
+  }
+  function typePoolForLevel(level){
+    if(level <= 1) return ['basic'];
+    if(level === 2) return ['basic','basic','fast'];
+    if(level === 3) return ['basic','fast','fast','spitter'];
+    if(level <= 5) return ['basic','fast','fast','spitter','tank'];
+    return ['fast','fast','spitter','spitter','tank','tank'];
+  }
+  const REINFORCE_INTERVAL = 4.6;
+  function maxBoardForLevel(level){ return enemyCountForLevel(level) + 3; }
+
+  function isBossLevel(lvl){ return lvl > 0 && lvl % 10 === 0; }
+  const LAST_LEVEL = 100;
+
+  // 10 unique boss "species" - one per tier (levels 10,20,...,100). Each has
+  // its own look, shield behaviour, attack pattern and quirks. The 10th and
+  // final boss is a rat, not a worm - a different shape entirely.
+  const BOSS_TEMPLATES = [
+    { key:'scout', name:'SCOUT', shape:'worm',
+      palette:{body:[90,150,60],  dark:[55,100,35],  hi:[190,230,140]}, spiky:false,
+      sizeMult:1.0, shieldCount:1, shieldSpeed:1.0, spitPattern:'single',
+      ghost:false, spawnsMinions:false, erratic:false, speedMult:1.0, hpMult:1.0, riseMult:1.0 },
+    { key:'brute', name:'ARMOR', shape:'worm',
+      palette:{body:[128,112,140], dark:[85,70,98],  hi:[190,175,205]}, spiky:true,
+      sizeMult:1.3, shieldCount:1, shieldSpeed:0.55, spitPattern:'spread', spitSpeed:210, constantSpitRate:true,
+      ghost:false, spawnsMinions:false, erratic:false, speedMult:0.7, hpMult:1.6, riseMult:0.8 },
+    { key:'ghost', name:'GHOST', shape:'worm',
+      palette:{body:[150,200,220], dark:[90,140,170], hi:[220,245,255]}, spiky:false,
+      sizeMult:0.9, shieldCount:1, shieldSpeed:1.7, spitPattern:'single',
+      ghost:true, spawnsMinions:false, erratic:false, speedMult:1.3, hpMult:0.85, riseMult:1.1 },
+    { key:'queen', name:'QUEEN', shape:'worm',
+      palette:{body:[200,90,70], dark:[140,50,40],  hi:[255,170,140]}, spiky:false,
+      sizeMult:1.2, shieldCount:2, shieldSpeed:1.0, spitPattern:'single',
+      ghost:false, spawnsMinions:true, erratic:false, speedMult:0.85, hpMult:1.3, riseMult:0.9 },
+    { key:'dark', name:'DARKNESS', shape:'worm',
+      palette:{body:[40,30,45], dark:[20,15,25],  hi:[150,90,190]}, spiky:true,
+      sizeMult:1.1, shieldCount:2, shieldSpeed:1.3, spitPattern:'homing',
+      ghost:false, spawnsMinions:false, erratic:false, speedMult:1.2, hpMult:1.4, riseMult:1.2 },
+    { key:'acid', name:'ACID', shape:'worm',
+      palette:{body:[180,210,40], dark:[120,150,20], hi:[230,255,140]}, spiky:false,
+      sizeMult:0.85, shieldCount:1, shieldSpeed:1.4, spitPattern:'single', constantSpitRate:true,
+      ghost:false, spawnsMinions:false, erratic:true, speedMult:1.5, hpMult:1.1, riseMult:1.1 },
+    { key:'crystal', name:'CRYSTAL', shape:'worm',
+      palette:{body:[210,230,245], dark:[150,180,205], hi:[255,255,255]}, spiky:true,
+      sizeMult:1.15, shieldCount:1, shieldSpeed:0.5, spitPattern:'single',
+      ghost:false, spawnsMinions:false, erratic:false, speedMult:0.6, hpMult:2.0, riseMult:0.7 },
+    { key:'volcano', name:'VOLCANO', shape:'worm',
+      palette:{body:[90,25,20], dark:[35,10,10], hi:[255,140,40]}, spiky:true,
+      sizeMult:1.2, shieldCount:1, shieldSpeed:1.2, spitPattern:'homing',
+      ghost:false, spawnsMinions:false, erratic:false, speedMult:1.15, hpMult:1.5, riseMult:1.3 },
+    { key:'mechanic', name:'MECHANISM', shape:'worm',
+      palette:{body:[120,128,135], dark:[70,76,82], hi:[220,230,235]}, spiky:true,
+      sizeMult:1.25, shieldCount:2, shieldSpeed:1.1, spitPattern:'spread', spitSpeed:62, constantSpitRate:true, minionRateMult:3.0,
+      ghost:false, spawnsMinions:true, erratic:false, speedMult:1.0, hpMult:1.7, riseMult:1.0 },
+    { key:'rat', name:'RAT', shape:'rat',
+      palette:{body:[110,95,85], dark:[60,50,45], hi:[190,175,160]}, spiky:false,
+      sizeMult:1.1, shieldCount:2, shieldSpeed:1.5, spitPattern:'homing',
+      ghost:false, spawnsMinions:true, erratic:false, speedMult:1.35, hpMult:2.2, riseMult:1.3 }
+  ];
+  function bossTemplateForLevel(lvl){
+    const tier = Math.floor(lvl/10); // 1,2,3...
+    return BOSS_TEMPLATES[(tier-1) % BOSS_TEMPLATES.length];
+  }
+
+  // Screen shake
+  let shakeTime = 0, shakeMag = 0;
+  function triggerShake(mag, dur){ shakeMag = Math.max(shakeMag, mag); shakeTime = Math.max(shakeTime, dur); }
+
+  // Floating score popups
+  let popups = [];
+  function spawnPopup(x,y,text,color){
+    popups.push({x,y,text,life:0,maxLife:0.7,color:color||'255,207,63'});
+  }
+
+  // =====================================================================
+  // STATE
+  // =====================================================================
+  const STORAGE_KEY = 'ptn_pnh_best_score';
+  let best = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10) || 0;
+  document.getElementById('bestVal').textContent = best;
+
+  let running = false;
+  let score = 0;
+  let level = 1;
+
+  // Shields (lives). Reaching 0 ends the run.
+  const MAX_SHIELDS = 4;
+  let shields = MAX_SHIELDS;
+  let hitsTaken = 0;
+  let invulnTime = 0;
+  const INVULN_DURATION = 1.1;
+
+  let killsThisLevel = 0;
+
+  const PLAYER_W = 92, PLAYER_H = 52;
+  const player = { x:0, y:24, w:PLAYER_W, h:PLAYER_H, speed:360 };
+
+  let bullets = [];
+  const BULLET_W = 17, BULLET_H = 26;
+  const BULLET_SPEED = 620;
+  const FIRE_COOLDOWN = 0.13;
+  let fireCooldownLeft = 0;
+
+  const HEAT_PER_SHOT = 14.4;
+  const HEAT_COOL_RATE = 24;
+  const HEAT_LOCK_AT = 100;
+  const HEAT_UNLOCK_AT = 30;
+  let heat = 0;
+  let overheated = false;
+
+  let enemies = [];
+  let spits = [];        // enemy/boss projectiles the player must dodge
+  let explosions = [];
+  let reinforceTimer = REINFORCE_INTERVAL;
+
+  let boss = null;
+  let bossDefeatedForLevel = 0;
+  let bossesDefeated = 0;
+
+  function layoutPlayer(){ player.x = W/2 - player.w/2; player.y = 24; }
+
+  function makeEnemy(i, cols, lvl){
+    const pool = typePoolForLevel(lvl);
+    const typeKey = pool[Math.floor(Math.random()*pool.length)];
+    const def = ENEMY_TYPES[typeKey];
+    const spacing = (W - 60) / cols;
+    const mult = speedMultForLevel(lvl);
+    return {
+      type: typeKey,
+      hp: def.hp,
+      maxHp: def.hp,
+      points: def.points,
+      w: def.w, h: def.h,
+      x: 20 + i*spacing + Math.random()*10,
+      y: H - 60 - (i%3)*26,
+      dir: Math.random() < 0.5 ? -1 : 1,
+      speed: (def.speed[0] + Math.random()*(def.speed[1]-def.speed[0])) * mult,
+      riseSpeed: def.riseSpeed,
+      rushCooldown: 2.5 + Math.random()*3,
+      rushing: 0,
+      // tank shield cycle
+      shielded: false,
+      shieldCycle: typeKey === 'tank' ? (1.6 + Math.random()) : 0,
+      // spitter attack cadence
+      spitCooldown: typeKey === 'spitter' ? (1.4 + Math.random()*1.6) : 0,
+      // per-enemy animation phase so wiggles aren't all in sync
+      animPhase: Math.random()*10
+    };
+  }
+
+  function spawnWave(){
+    const count = enemyCountForLevel(level);
+    enemies = [];
+    for(let i=0;i<count;i++) enemies.push(makeEnemy(i, count, level));
+  }
+
+  function makeBoss(lvl){
+    const tpl = bossTemplateForLevel(lvl);
+    const tier = Math.floor(lvl/10);
+    const baseHp = (18 + tier*12) * 0.5;
+    const w = 148*tpl.sizeMult, h = 74*tpl.sizeMult;
+    return {
+      tpl,
+      hp: Math.round(baseHp*tpl.hpMult), maxHp: Math.round(baseHp*tpl.hpMult),
+      w, h,
+      x: W/2 - w/2,
+      y: H - h - 10,   // starts at the bottom, like regular worms
+      dir: Math.random()<0.5?-1:1,
+      speed: (60 + tier*10) * tpl.speedMult,
+      riseSpeed: (11 + Math.min(tier,5)*2.2 + Math.max(0,tier-5)*0.5) * tpl.riseMult,   // creeps upward from the bottom - growth tapers off past boss 5
+      weakT: 0,
+      spitCooldown: 1.6,
+      hitFlash: 0,
+      enraged: false,
+      ghostAlpha: 1,
+      minionTimer: (4 + Math.random()*2) * (tpl.minionRateMult || 1)
+    };
+  }
+
+  function bossShieldPoints(b){
+    // orbiting shield node(s) - they BLOCK damage, they cannot be damaged
+    // themselves. Hit the exposed body instead, when no shield covers it.
+    const tpl = b.tpl;
+    const pts = [];
+    const speed = 1.6 * tpl.shieldSpeed;
+    for(let i=0;i<tpl.shieldCount;i++){
+      const phase = i * Math.PI; // second node orbits opposite side
+      const ox = Math.cos(b.weakT*speed + phase) * (b.w*0.30);
+      const oy = Math.sin(b.weakT*speed*1.3 + phase) * (b.h*0.30);
+      pts.push({ x: b.x + b.w/2 + ox, y: b.y + b.h/2 + oy, r: (b.enraged ? 14 : 18) * Math.min(1.15,tpl.sizeMult) });
+    }
+    return pts;
+  }
+
+  function startBossFight(){
+    boss = makeBoss(level);
+    enemies = [];
+    spits = [];
+    document.getElementById('bossBarWrap').style.display = 'block';
+    document.getElementById('bossLabel').style.display = 'block';
+    document.getElementById('bossLabel').textContent = 'BOSS: ' + boss.tpl.name;
+  }
+
+  function endBossFight(bonus){
+    spawnExplosion(boss.x+boss.w/2, boss.y+boss.h/2, true);
+    triggerShake(16, 0.4);
+    playSfx(sndBoom, 0.9);
+    score += bonus;
+    document.getElementById('scoreVal').textContent = score;
+    spawnPopup(boss.x+boss.w/2, boss.y+boss.h/2, '+'+bonus+' BOSS DOWN', '255,63,214');
+    bossDefeatedForLevel = level;
+    bossesDefeated += 1;   // each boss kill cools the weapon's overheat rate by 10% of base
+    const wasLastLevel = level >= LAST_LEVEL;
+    boss = null;
+    document.getElementById('bossBarWrap').style.display = 'none';
+    document.getElementById('bossLabel').style.display = 'none';
+    if(wasLastLevel){
+      winGame();
+      return;
+    }
+    advanceLevel();       // beating the boss always pushes you to the next level
+    spawnWave();
+    flashLevelUp(false);
+  }
+
+  function winGame(){
+    running = false;
+    render();
+    document.getElementById('danger').style.boxShadow = 'inset 0 0 0 0 rgba(255,40,40,0)';
+    document.getElementById('bossBarWrap').style.display = 'none';
+    document.getElementById('bossLabel').style.display = 'none';
+
+    if(score > best){
+      best = score;
+      localStorage.setItem(STORAGE_KEY, String(best));
+      document.getElementById('bestVal').textContent = best;
+    }
+    document.getElementById('ovTitle').textContent = 'Victory';
+    document.getElementById('ovBig').textContent = 'Score: ' + score;
+    document.getElementById('ovSub').textContent = 'The rat is destroyed. Level ' + LAST_LEVEL + ' — game complete!';
+    document.getElementById('startBtn').textContent = 'Play again';
+    document.getElementById('watchAdBtn').style.display = 'none';
+    document.getElementById('shareShieldBtn').style.display = 'none';
+    document.getElementById('overlay').classList.remove('hidden');
+    if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('success'); }
+
+    reportScoreToBot(score);
+  }
+
+  function resetGame(){
+    score = 0; level = 1;
+    shakeTime = 0; shakeMag = 0;
+    shields = MAX_SHIELDS; hitsTaken = 0; invulnTime = 0;
+    killsThisLevel = 0;
+    boss = null; bossDefeatedForLevel = 0; bossesDefeated = 0;
+    spits = [];
+    revivesUsed = 0;
+    document.getElementById('watchAdBtn').style.display = 'none';
+    document.getElementById('shareShieldBtn').style.display = 'none';
+    updateShieldHud();
+    document.getElementById('scoreVal').textContent = score;
+    document.getElementById('lvlVal').textContent = level + '/' + LAST_LEVEL;
+    document.getElementById('syncMsg').textContent = '';
+    document.getElementById('danger').style.boxShadow = 'inset 0 0 0 0 rgba(255,40,40,0)';
+    document.getElementById('bossBarWrap').style.display = 'none';
+    document.getElementById('bossLabel').style.display = 'none';
+    layoutPlayer();
+    spawnWave();
+    bullets = [];
+    fireCooldownLeft = 0;
+    explosions = [];
+    popups = [];
+    heat = 0; overheated = false;
+    document.getElementById('heatLabel').classList.remove('show');
+    document.getElementById('heatBar').style.width = '0%';
+    reinforceTimer = REINFORCE_INTERVAL;
+  }
+
+  function updateShieldHud(){
+    const dots = document.querySelectorAll('#shields .shield-dot');
+    dots.forEach((d,i)=> d.classList.toggle('lost', i >= shields));
+  }
+
+  function advanceLevel(){
+    killsThisLevel = 0;
+    level += 1;
+    document.getElementById('lvlVal').textContent = level + '/' + LAST_LEVEL;
+  }
+
+  // Killing regular enemies (not boss minions) advances the level - every
+  // KILLS_PER_LEVEL kills bumps you up. A boss fight is its own single level:
+  // no kill-count needed there, just beat the boss (see endBossFight).
+  function registerKill(){
+    if(boss) return; // boss-fight minions don't count toward normal progression
+    killsThisLevel += 1;
+    if(killsThisLevel >= KILLS_PER_LEVEL){
+      advanceLevel();
+      if(isBossLevel(level) && bossDefeatedForLevel !== level){
+        flashLevelUp(true);
+        startBossFight();
+      } else if(!boss){
+        spawnWave();
+        flashLevelUp(false);
+      }
+    }
+  }
+
+  function flashLevelUp(isBoss){
+    const msg = document.getElementById('syncMsg');
+    msg.textContent = isBoss ? ('LEVEL ' + level + ' — BOSS!') : ('Level ' + level + '!');
+    msg.style.color = isBoss ? 'var(--boss)' : 'var(--accent)';
+    setTimeout(()=>{ if(running) msg.textContent = ''; }, 1100);
+  }
+
+  // =====================================================================
+  // INPUT
+  // =====================================================================
+  const keys = { left:false, right:false, up:false, down:false };
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'ArrowLeft') keys.left = true;
+    if(e.key === 'ArrowRight') keys.right = true;
+    if(e.key === 'ArrowUp') keys.up = true;
+    if(e.key === 'ArrowDown') keys.down = true;
+    if(e.key === ' ') fireHeld = true;
+  });
+  window.addEventListener('keyup', (e)=>{
+    if(e.key === 'ArrowLeft') keys.left = false;
+    if(e.key === 'ArrowRight') keys.right = false;
+    if(e.key === 'ArrowUp') keys.up = false;
+    if(e.key === 'ArrowDown') keys.down = false;
+    if(e.key === ' ') fireHeld = false;
+  });
+  function bindHold(el, onDown, onUp){
+    const down=(e)=>{e.preventDefault();onDown();}, up=(e)=>{e.preventDefault();onUp();};
+    el.addEventListener('touchstart', down, {passive:false});
+    el.addEventListener('touchend', up, {passive:false});
+    el.addEventListener('touchcancel', up, {passive:false});
+    el.addEventListener('mousedown', down);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+  }
+  bindHold(document.getElementById('leftBtn'),
+    ()=>{keys.left=true; document.getElementById('leftBtn').classList.add('active');},
+    ()=>{keys.left=false; document.getElementById('leftBtn').classList.remove('active');});
+  bindHold(document.getElementById('rightBtn'),
+    ()=>{keys.right=true; document.getElementById('rightBtn').classList.add('active');},
+    ()=>{keys.right=false; document.getElementById('rightBtn').classList.remove('active');});
+  bindHold(document.getElementById('upBtn'),
+    ()=>{keys.up=true; document.getElementById('upBtn').classList.add('active');},
+    ()=>{keys.up=false; document.getElementById('upBtn').classList.remove('active');});
+  bindHold(document.getElementById('downBtn'),
+    ()=>{keys.down=true; document.getElementById('downBtn').classList.add('active');},
+    ()=>{keys.down=false; document.getElementById('downBtn').classList.remove('active');});
+
+  const fireBtn = document.getElementById('fireBtn');
+  bindHold(fireBtn,
+    ()=>{ fireHeld = true; fireBtn.classList.add('active'); },
+    ()=>{ fireHeld = false; fireBtn.classList.remove('active'); });
+
+  let fireHeld = false;
+
+  function tryFire(){
+    if(!running || overheated) return;
+    if(fireCooldownLeft <= 0){
+      bullets.push({ x: player.x + player.w/2 - BULLET_W/2, y: player.y + player.h });
+      fireCooldownLeft = FIRE_COOLDOWN;
+      if(!DEBUG_INFINITE){
+        const heatFactor = Math.max(0, 1 - 0.1*bossesDefeated); // each boss kill cools the weapon further
+        heat = Math.min(HEAT_LOCK_AT, heat + HEAT_PER_SHOT*heatFactor);
+        if(heat >= HEAT_LOCK_AT){
+          overheated = true;
+          document.getElementById('heatLabel').classList.add('show');
+          triggerShake(4, 0.15);
+        }
+      }
+      playSfx(sndLaser, 0.45);
+    }
+  }
+
+  function rectsOverlap(a,b){
+    return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+  }
+  function circleRectOverlap(cx,cy,cr,rect){
+    const nx = Math.max(rect.x, Math.min(cx, rect.x+rect.w));
+    const ny = Math.max(rect.y, Math.min(cy, rect.y+rect.h));
+    const dx = cx-nx, dy = cy-ny;
+    return dx*dx+dy*dy <= cr*cr;
+  }
+
+  // =====================================================================
+  // PLAYER HIT (shields)
+  // =====================================================================
+  function playerHit(){
+    if(invulnTime > 0) return;
+    if(DEBUG_INFINITE){
+      invulnTime = 0.3; // still a tiny grace window so effects don't spam every frame
+      triggerShake(6, 0.15);
+      spawnPopup(player.x+player.w/2, player.y+player.h, 'DEBUG: INVULNERABLE', '120,220,255');
+      return;
+    }
+    shields -= 1;
+    hitsTaken += 1;
+    invulnTime = INVULN_DURATION;
+    updateShieldHud();
+    triggerShake(10, 0.25);
+    playSfx(sndBoom, 0.5);
+    spawnPopup(player.x+player.w/2, player.y+player.h, 'SHIELD -1', '255,80,80');
+    if(shields <= 0){
+      gameOver();
+    }
+  }
+
+  // =====================================================================
+  // EXPLOSIONS
+  // =====================================================================
+  function spawnExplosion(cx, cy, big){
+    const n = big ? 22 : 12;
+    const baseR = big ? 54 : 30;
+    for(let i=0;i<n;i++){
+      const ang = (Math.PI*2*i/n) + Math.random()*0.3;
+      explosions.push({
+        x:cx, y:cy,
+        vx: Math.cos(ang)*(60+Math.random()*90),
+        vy: Math.sin(ang)*(60+Math.random()*90),
+        r: 3+Math.random()*4,
+        life: 0, maxLife: 0.35+Math.random()*0.25,
+        color: Math.random()<0.5 ? '255,150,40' : '255,60,30'
+      });
+    }
+    explosions.push({ x:cx, y:cy, vx:0, vy:0, r:baseR, life:0, maxLife:0.22, color:'255,220,120', flash:true });
+  }
+  function updateExplosions(dt){
+    for(let i=explosions.length-1;i>=0;i--){
+      const p = explosions[i];
+      p.life += dt;
+      p.x += p.vx*dt; p.y += p.vy*dt;
+      p.vx *= 0.92; p.vy *= 0.92;
+      if(p.life >= p.maxLife) explosions.splice(i,1);
+    }
+  }
+  function renderExplosions(){
+    for(const p of explosions){
+      const t = p.life / p.maxLife;
+      const alpha = 1 - t;
+      ctx.save();
+      ctx.globalAlpha = Math.max(alpha,0);
+      ctx.fillStyle = `rgba(${p.color},1)`;
+      const r = p.flash ? p.r*(1-t*0.5) : p.r*(1-t*0.3);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(r,0.5), 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // =====================================================================
+  // SPITS (enemy/boss projectiles) - travel from the shooter toward the
+  // player's position at fire time, must be dodged by moving.
+  // =====================================================================
+  function spawnSpit(fromX, fromY, angleOffset, homing, fixedSpeed){
+    const tx = player.x + player.w/2, ty = player.y + player.h/2;
+    const dx = tx-fromX, dy = ty-fromY;
+    const ang = Math.atan2(dy,dx) + (angleOffset||0);
+    const spd = fixedSpeed || 210; // constant, never scaled by rage/level/anything else
+    spits.push({ x:fromX, y:fromY, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, r:7, homing: !!homing });
+    playSfx(sndLaser, 0.25);
+  }
+  function updateSpits(dt){
+    for(let i=spits.length-1;i>=0;i--){
+      const s = spits[i];
+      if(s.homing){
+        const dx = (player.x+player.w/2)-s.x, dy = (player.y+player.h/2)-s.y;
+        const d = Math.max(1, Math.hypot(dx,dy));
+        s.vx += (dx/d)*70*dt;
+        s.vy += (dy/d)*70*dt;
+        const sp = Math.hypot(s.vx,s.vy), maxSp = 250;
+        if(sp > maxSp){ s.vx = s.vx/sp*maxSp; s.vy = s.vy/sp*maxSp; }
+      }
+      s.x += s.vx*dt; s.y += s.vy*dt;
+      if(s.y < -20 || s.y > H+20 || s.x < -20 || s.x > W+20){ spits.splice(i,1); continue; }
+
+      // shoot the slime down with a grenade before it reaches you
+      let intercepted = false;
+      for(let bi=bullets.length-1; bi>=0; bi--){
+        const b = bullets[bi];
+        const bRect = {x:b.x, y:b.y, w:BULLET_W, h:BULLET_H};
+        if(circleRectOverlap(s.x, s.y, s.r, bRect)){
+          bullets.splice(bi,1);
+          spits.splice(i,1);
+          spawnExplosion(s.x, s.y, false);
+          playSfx(sndBoom, 0.3);
+          intercepted = true;
+          break;
+        }
+      }
+      if(intercepted) continue;
+
+      if(circleRectOverlap(s.x, s.y, s.r, player)){
+        spits.splice(i,1);
+        playerHit();
+      }
+    }
+  }
+  function renderSpits(){
+    for(const s of spits){
+      ctx.save();
+      ctx.fillStyle = 'rgba(150,255,90,0.9)';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(200,255,160,0.5)';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r*1.7, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // =====================================================================
+  // BACKGROUND
+  // =====================================================================
+  // =====================================================================
+  // ANIMATED WORM RENDERING (procedural, no static image - real per-frame
+  // wiggle/crawl animation via a peristaltic sine wave along the body)
+  // =====================================================================
+  function rgba(arr, a){ return `rgba(${arr[0]},${arr[1]},${arr[2]},${a==null?1:a})`; }
+
+  function drawWorm(x, y, w, h, dir, phase, palette, opts){
+    opts = opts || {};
+    const segs = 6;
+    const t = performance.now()/1000*5.2 + phase;
+    ctx.save();
+    ctx.translate(x + w/2, y + h/2);
+    if(dir < 0) ctx.scale(-1,1);
+    ctx.translate(-w/2, -h/2);
+
+    for(let i=0;i<segs;i++){
+      const ft = i/(segs-1);
+      const wob = Math.sin(t - i*0.85) * h*0.09;              // undulating crawl
+      const squash = 1 + Math.sin(t - i*0.85) * 0.16;          // peristaltic pulse
+      const taper = 0.55 + 0.45*Math.sin(Math.max(0.001,ft)*Math.PI);
+      const segW = w*0.16*taper;
+      const segH = h*0.40*squash*taper;
+      const cx = w*(0.14 + ft*0.72);
+      const cy = h*0.52 + wob;
+      const col = i%2===0 ? palette.dark : palette.body;
+      ctx.fillStyle = rgba(col);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, segW, segH, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      if(opts.spiky && i>0 && i<segs-1){
+        ctx.fillStyle = 'rgba(45,32,22,0.95)';
+        ctx.beginPath();
+        ctx.moveTo(cx-segW*0.3, cy-segH*0.9);
+        ctx.lineTo(cx, cy-segH*1.7);
+        ctx.lineTo(cx+segW*0.3, cy-segH*0.9);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // glossy highlight streak along the back
+    ctx.strokeStyle = rgba(palette.hi, 0.55);
+    ctx.lineWidth = Math.max(1.5, h*0.05);
+    ctx.beginPath();
+    for(let i=0;i<segs;i++){
+      const ft = i/(segs-1);
+      const wob = Math.sin(t - i*0.85) * h*0.09;
+      const cx = w*(0.14 + ft*0.72);
+      const cy = h*0.52 + wob - h*0.14;
+      if(i===0) ctx.moveTo(cx,cy); else ctx.lineTo(cx,cy);
+    }
+    ctx.stroke();
+
+    // head with tiny eyes, at the front (right side before dir-flip)
+    const headWob = Math.sin(t) * h*0.09;
+    const hx = w*0.86, hy = h*0.52+headWob;
+    const hr = h*0.24;
+    ctx.fillStyle = rgba(palette.dark);
+    ctx.beginPath(); ctx.ellipse(hx,hy,hr*0.85,hr, 0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(15,10,10,0.9)';
+    ctx.beginPath(); ctx.arc(hx+hr*0.25, hy-hr*0.25, Math.max(1,h*0.035), 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx+hr*0.25, hy+hr*0.25, Math.max(1,h*0.035), 0, Math.PI*2); ctx.fill();
+
+    if(opts.drip){
+      const dripY = hy + hr*0.9 + Math.abs(Math.sin(t*1.3))*h*0.08;
+      ctx.fillStyle = 'rgba(150,255,110,0.9)';
+      ctx.beginPath(); ctx.ellipse(hx, dripY, h*0.05, h*0.1, 0, 0, Math.PI*2); ctx.fill();
+    }
+    if(opts.cracked){
+      ctx.strokeStyle = 'rgba(255,175,60,0.9)';
+      ctx.lineWidth = Math.max(1, h*0.035);
+      ctx.beginPath();
+      ctx.moveTo(w*0.35, h*0.35); ctx.lineTo(w*0.55, h*0.65);
+      ctx.moveTo(w*0.45, h*0.25); ctx.lineTo(w*0.65, h*0.45);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // The final boss (level 100) is a rat, not a worm - a distinct silhouette:
+  // scurrying legs, a swaying tail, pointed snout and round ears.
+  function drawRat(x, y, w, h, dir, phase, palette, opts){
+    opts = opts || {};
+    const t = performance.now()/1000*6 + phase;
+    ctx.save();
+    ctx.translate(x + w/2, y + h/2);
+    if(dir < 0) ctx.scale(-1,1);
+    ctx.translate(-w/2, -h/2);
+
+    const bob = Math.sin(t) * h*0.035;
+    const bodyCx = w*0.42, bodyCy = h*0.56 + bob;
+    const bodyRx = w*0.32, bodyRy = h*0.28;
+
+    // tail - long, curved, swaying behind
+    const tailSway = Math.sin(t*1.7) * h*0.16;
+    ctx.strokeStyle = rgba(palette.dark, 0.9);
+    ctx.lineWidth = Math.max(2, h*0.04);
+    ctx.beginPath();
+    ctx.moveTo(bodyCx-bodyRx*0.9, bodyCy+bodyRy*0.2);
+    ctx.quadraticCurveTo(w*0.02, bodyCy+bodyRy*0.5+tailSway, -w*0.06, bodyCy-bodyRy*0.3+tailSway*1.3);
+    ctx.stroke();
+
+    // scurrying legs
+    ctx.strokeStyle = rgba(palette.dark);
+    ctx.lineWidth = Math.max(2, h*0.05);
+    for(let i=0;i<2;i++){
+      const legPhase = t*9 + i*Math.PI;
+      const lx = bodyCx - bodyRx*0.35 + i*bodyRx*1.0;
+      const lift = Math.sin(legPhase) * h*0.07;
+      ctx.beginPath();
+      ctx.moveTo(lx, bodyCy+bodyRy*0.65);
+      ctx.lineTo(lx+Math.cos(legPhase)*h*0.05, bodyCy+bodyRy*1.05+lift);
+      ctx.stroke();
+    }
+
+    // body
+    ctx.fillStyle = rgba(palette.body);
+    ctx.beginPath();
+    ctx.ellipse(bodyCx, bodyCy, bodyRx, bodyRy, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = rgba(palette.dark, 0.4);
+    ctx.beginPath();
+    ctx.ellipse(bodyCx, bodyCy-bodyRy*0.4, bodyRx*0.8, bodyRy*0.45, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // head + pointed snout
+    const headCx = bodyCx + bodyRx*0.88, headCy = bodyCy - bodyRy*0.1;
+    const headR = bodyRy*0.8;
+    ctx.fillStyle = rgba(palette.body);
+    ctx.beginPath(); ctx.ellipse(headCx, headCy, headR*0.85, headR*0.7, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(headCx+headR*0.6, headCy-headR*0.1);
+    ctx.lineTo(headCx+headR*1.5, headCy+headR*0.08);
+    ctx.lineTo(headCx+headR*0.6, headCy+headR*0.4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(30,20,20,0.9)';
+    ctx.beginPath(); ctx.arc(headCx+headR*1.45, headCy+headR*0.08, Math.max(1,h*0.022), 0, Math.PI*2); ctx.fill();
+
+    // round ears
+    ctx.fillStyle = rgba(palette.dark);
+    ctx.beginPath(); ctx.ellipse(headCx-headR*0.35, headCy-headR*0.75, headR*0.34, headR*0.4, -0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(headCx+headR*0.15, headCy-headR*0.8, headR*0.3, headR*0.36, 0.2, 0, Math.PI*2); ctx.fill();
+
+    // eye
+    ctx.fillStyle = 'rgba(210,30,30,0.95)';
+    ctx.beginPath(); ctx.arc(headCx+headR*0.1, headCy-headR*0.15, Math.max(1,h*0.03), 0, Math.PI*2); ctx.fill();
+
+    // whiskers
+    ctx.strokeStyle = 'rgba(235,235,235,0.55)';
+    ctx.lineWidth = 1;
+    for(const wy of [-1,0,1]){
+      ctx.beginPath();
+      ctx.moveTo(headCx+headR*1.05, headCy+wy*headR*0.18);
+      ctx.lineTo(headCx+headR*1.75, headCy+wy*headR*0.4);
+      ctx.stroke();
+    }
+
+    if(opts.cracked){
+      ctx.strokeStyle = 'rgba(255,175,60,0.9)';
+      ctx.lineWidth = Math.max(1, h*0.03);
+      ctx.beginPath();
+      ctx.moveTo(bodyCx-bodyRx*0.3, bodyCy-bodyRy*0.3); ctx.lineTo(bodyCx+bodyRx*0.2, bodyCy+bodyRy*0.3);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // A proper heraldic shield shape (not a plain circle) used for the boss's
+  // invulnerable blocking node.
+  // Spinning propeller blur discs overlaid on the drone's four rotor arms -
+  // the base photo is static, this adds the illusion of motion on top of it.
+  function drawPropellers(px, py, pw, ph){
+    const t = performance.now()/1000;
+    const spin = (t*22) % (Math.PI*2); // fast continuous spin
+    const rotors = [
+      { x: px + pw*0.07, y: py + ph*0.14 },
+      { x: px + pw*0.93, y: py + ph*0.14 },
+      { x: px + pw*0.20, y: py + ph*0.72 },
+      { x: px + pw*0.80, y: py + ph*0.72 }
+    ];
+    for(const r of rotors){
+      ctx.save();
+      ctx.translate(r.x, r.y);
+      ctx.rotate(spin);
+      ctx.fillStyle = 'rgba(235,240,245,0.5)';
+      ctx.beginPath(); ctx.ellipse(0, 0, pw*0.12, pw*0.026, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, 0, pw*0.026, pw*0.12, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+      // small static hub dot so it reads as a rotor centre, not a blob
+      ctx.fillStyle = 'rgba(40,40,40,0.7)';
+      ctx.beginPath(); ctx.arc(r.x, r.y, pw*0.02, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawShieldEmblem(cx, cy, r, glowAlpha){
+    ctx.save();
+    ctx.translate(cx, cy);
+    const w = r*1.5, h = r*1.9;
+    ctx.beginPath();
+    ctx.moveTo(0, -h*0.5);
+    ctx.bezierCurveTo(w*0.55, -h*0.5, w*0.55, -h*0.1, w*0.55, h*0.05);
+    ctx.bezierCurveTo(w*0.55, h*0.42, w*0.22, h*0.46, 0, h*0.5);
+    ctx.bezierCurveTo(-w*0.22, h*0.46, -w*0.55, h*0.42, -w*0.55, h*0.05);
+    ctx.bezierCurveTo(-w*0.55, -h*0.1, -w*0.55, -h*0.5, 0, -h*0.5);
+    ctx.closePath();
+
+    ctx.fillStyle = `rgba(90,190,255,${0.45*glowAlpha+0.25})`;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(225,250,255,0.9)`;
+    ctx.stroke();
+
+    // center rib line + rivets for a "real shield" read
+    ctx.strokeStyle = 'rgba(225,250,255,0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(0,-h*0.38); ctx.lineTo(0,h*0.34); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    for(const py of [-h*0.22, 0, h*0.22]){
+      ctx.beginPath(); ctx.arc(0, py, r*0.06, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // =====================================================================
+  function drawBackgroundImg(){
+    if(imgBg.complete && imgBg.naturalWidth){
+      ctx.drawImage(imgBg, 0, 0, W, H);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(0,0,W,H);
+    } else {
+      ctx.fillStyle = '#0a0e0a';
+      ctx.fillRect(0,0,W,H);
+    }
+  }
+
+  // =====================================================================
+  // MAIN LOOP
+  // =====================================================================
+  let lastT = 0;
+  function loop(t){
+    if(!running) return;
+    const dt = Math.min((t - lastT)/1000, 0.05) || 0;
+    lastT = t;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function updatePopups(dt){
+    for(let i=popups.length-1;i>=0;i--){
+      const p = popups[i];
+      p.life += dt;
+      p.y -= 40*dt;
+      if(p.life >= p.maxLife) popups.splice(i,1);
+    }
+  }
+  function renderPopups(){
+    for(const p of popups){
+      const t = p.life/p.maxLife;
+      ctx.save();
+      ctx.globalAlpha = Math.max(1-t,0);
+      ctx.fillStyle = `rgba(${p.color},1)`;
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.restore();
+    }
+  }
+
+  function update(dt){
+    let dir = 0;
+    if(keys.left) dir -= 1;
+    if(keys.right) dir += 1;
+    player.x += dir * player.speed * dt;
+    if(player.x < 0) player.x = 0;
+    if(player.x > W - player.w) player.x = W - player.w;
+
+    let dirY = 0;
+    if(keys.up) dirY -= 1;
+    if(keys.down) dirY += 1;
+    player.y += dirY * player.speed * dt;
+    const minY = 10, maxY = H*0.42; // stays an aerial defender - can dip down but not join the worms
+    if(player.y < minY) player.y = minY;
+    if(player.y > maxY) player.y = maxY;
+
+    if(invulnTime > 0) invulnTime = Math.max(0, invulnTime - dt);
+
+    fireCooldownLeft = Math.max(0, fireCooldownLeft - dt);
+    if(fireHeld && fireCooldownLeft <= 0) tryFire();
+
+    if(!fireHeld || overheated){
+      heat = Math.max(0, heat - HEAT_COOL_RATE*dt);
+    }
+    if(overheated && heat <= HEAT_UNLOCK_AT){
+      overheated = false;
+      document.getElementById('heatLabel').classList.remove('show');
+    }
+    const heatBar = document.getElementById('heatBar');
+    heatBar.style.width = heat + '%';
+    heatBar.style.background = overheated ? '#ff2020' : (heat > 70 ? '#ff8a3f' : 'var(--accent-2)');
+
+    for(let i=bullets.length-1;i>=0;i--){
+      bullets[i].y += BULLET_SPEED * dt;
+      if(bullets[i].y > H + 30) bullets.splice(i,1);
+    }
+
+    if(boss){
+      updateBoss(dt);
+      if(enemies.length) updateEnemies(dt); // boss-spawned minions, if any
+    } else {
+      reinforceTimer -= dt;
+      if(reinforceTimer <= 0){
+        reinforceTimer = Math.max(1.4, REINFORCE_INTERVAL - level*0.15);
+        if(enemies.length < maxBoardForLevel(level)){
+          const fresh = makeEnemy(0, 1, level);
+          fresh.x = Math.random()*(W-fresh.w);
+          fresh.y = H - 20;
+          enemies.push(fresh);
+        }
+      }
+      updateEnemies(dt);
+    }
+
+    updateSpits(dt);
+
+    if(shakeTime > 0){
+      shakeTime -= dt;
+      if(shakeTime <= 0) shakeMag = 0;
+    }
+
+    updateExplosions(dt);
+    updatePopups(dt);
+  }
+
+  function updateBoss(dt){
+    const b = boss;
+    const tpl = b.tpl;
+    b.weakT += dt;
+    b.enraged = b.hp <= b.maxHp*0.4;
+    const spd = b.speed * (b.enraged ? 1.4 : 1);
+    if(tpl.erratic && Math.random() < dt*1.2){
+      b.dir *= -1; // unpredictable snap turns - hard to read its pattern
+    }
+    b.x += b.dir * spd * dt;
+    if(b.x <= 0){ b.x = 0; b.dir = 1; }
+    if(b.x >= W - b.w){ b.x = W - b.w; b.dir = -1; }
+    const maxRiseY = H*0.30; // bosses can only climb through 70% of the screen height
+    b.y -= b.riseSpeed * dt; // creeps up from the bottom - defeat it before it reaches you
+    if(b.y < maxRiseY) b.y = maxRiseY;
+
+    if(b.hitFlash > 0) b.hitFlash -= dt;
+
+    // Ghost boss phases in and out of visibility - only vulnerable while visible.
+    b.ghostAlpha = tpl.ghost ? (0.2 + 0.8*Math.abs(Math.sin(b.weakT*1.5))) : 1;
+    const bodyVulnerable = !tpl.ghost || b.ghostAlpha > 0.4;
+
+    if(b.y <= player.y + player.h + 10){
+      playerHit();
+      b.y = player.y + player.h + 10;
+    }
+
+    b.spitCooldown -= dt;
+    if(b.spitCooldown <= 0){
+      const rages = b.enraged && !tpl.constantSpitRate;
+      b.spitCooldown = rages ? 1.0 : 1.7;
+      const fx = b.x + b.w*0.25 + Math.random()*b.w*0.5, fy = b.y + b.h*0.7;
+      if(tpl.spitPattern === 'spread'){
+        spawnSpit(fx, fy, -0.32, false, tpl.spitSpeed);
+        spawnSpit(fx, fy, 0, false, tpl.spitSpeed);
+        spawnSpit(fx, fy, 0.32, false, tpl.spitSpeed);
+      } else if(tpl.spitPattern === 'homing'){
+        spawnSpit(fx, fy, 0, true);
+      } else {
+        spawnSpit(fx, fy, 0);
+      }
+    }
+
+    // Queen-type bosses reinforce themselves with small minions mid-fight.
+    if(tpl.spawnsMinions){
+      b.minionTimer -= dt;
+      if(b.minionTimer <= 0 && enemies.length < 3){
+        b.minionTimer = (5 + Math.random()*3) * (tpl.minionRateMult || 1);
+        const def = ENEMY_TYPES.fast;
+        enemies.push({
+          type:'fast', hp:def.hp, maxHp:def.hp, points:def.points, w:def.w, h:def.h,
+          x: Math.random()*(W-def.w), y: H-20,
+          dir: Math.random()<0.5?-1:1,
+          speed: def.speed[0]+Math.random()*(def.speed[1]-def.speed[0]),
+          riseSpeed: def.riseSpeed, rushCooldown: 2.5+Math.random()*3, rushing:0,
+          shielded:false, shieldCycle:0, spitCooldown:0, animPhase: Math.random()*10
+        });
+      }
+    }
+
+    const shields = bossShieldPoints(b);
+    for(let bi=bullets.length-1; bi>=0; bi--){
+      const bl = bullets[bi];
+      const bRect = {x:bl.x, y:bl.y, w:BULLET_W, h:BULLET_H};
+      const bodyRect = {x:b.x, y:b.y, w:b.w, h:b.h};
+      let blocked = false;
+      for(const shield of shields){
+        const shieldRect = {x:shield.x-shield.r, y:shield.y-shield.r, w:shield.r*2, h:shield.r*2};
+        if(circleRectOverlap(bl.x+BULLET_W/2, bl.y+BULLET_H/2, 9, shieldRect)){
+          bullets.splice(bi,1);
+          spawnExplosion(bl.x+BULLET_W/2, bl.y+BULLET_H/2, false);
+          playSfx(sndBoom, 0.2);
+          blocked = true;
+          break;
+        }
+      }
+      if(blocked) continue;
+      if(bodyVulnerable && rectsOverlap(bRect, bodyRect)){
+        bullets.splice(bi,1);
+        b.hp -= 1;
+        b.hitFlash = 0.15;
+        triggerShake(6,0.1);
+        spawnExplosion(bl.x, bl.y, false);
+        playSfx(sndBoom, 0.4);
+        document.getElementById('bossBar').style.width = Math.max(0,(b.hp/b.maxHp*100)) + '%';
+        if(b.hp <= 0){
+          endBossFight(30 + level*4);
+          return;
+        }
+      } else if(rectsOverlap(bRect, bodyRect)){
+        // ghost boss is phased out right now - shots pass straight through
+        bullets.splice(bi,1);
+      }
+    }
+  }
+
+  function updateEnemies(dt){
+    const arr = enemies; // snapshot - `enemies` can be reassigned mid-loop
+                          // (level-up / boss start), which must not corrupt
+                          // this iteration or the game freezes.
+    let minEnemyY = H;
+    for(let ei=arr.length-1; ei>=0; ei--){
+      const e = arr[ei];
+      if(e.rushing > 0){
+        e.rushing -= dt;
+        e.y -= e.riseSpeed*3.2*dt;
+      } else {
+        e.rushCooldown -= dt;
+        if(e.rushCooldown <= 0){
+          e.rushing = 0.35;
+          e.rushCooldown = 3 + Math.random()*4;
+        }
+      }
+
+      if(e.type === 'tank'){
+        e.shieldCycle -= dt;
+        if(e.shieldCycle <= 0){
+          e.shielded = !e.shielded;
+          e.shieldCycle = e.shielded ? 1.5 : (2.2 + Math.random());
+        }
+      }
+
+      if(e.type === 'spitter'){
+        e.spitCooldown -= dt;
+        if(e.spitCooldown <= 0){
+          e.spitCooldown = 2.6 + Math.random()*1.6;
+          spawnSpit(e.x+e.w/2, e.y+e.h*0.3);
+        }
+      }
+
+      e.x += e.dir * e.speed * dt;
+      if(e.x <= 0){ e.dir = 1; e.y -= e.riseSpeed; }
+      if(e.x >= W - e.w){ e.dir = -1; e.y -= e.riseSpeed; }
+      minEnemyY = Math.min(minEnemyY, e.y);
+
+      if(e.y <= player.y + player.h + 4){
+        playerHit();
+        if(boss){
+          arr.splice(ei,1); // a boss-fight minion - don't respawn, the boss handles its own spawns
+        } else {
+          const fresh = makeEnemy(0, 1, level);
+          Object.assign(e, fresh, { x: Math.random()*(W-fresh.w), y: H - 40 - Math.random()*40 });
+        }
+        if(boss && arr !== enemies) break; // this array is now stale (a new wave/boss started) - stop touching it
+        continue;
+      }
+
+      for(let bi=bullets.length-1; bi>=0; bi--){
+        const b = bullets[bi];
+        const bRect = {x:b.x, y:b.y, w:BULLET_W, h:BULLET_H};
+        if(rectsOverlap(bRect, e)){
+          if(e.shielded){
+            bullets.splice(bi,1);
+            spawnExplosion(b.x, b.y, false);
+            break;
+          }
+          bullets.splice(bi,1);
+          e.hp -= 1;
+          if(e.hp <= 0){
+            score += e.points;
+            document.getElementById('scoreVal').textContent = score;
+            playSfx(sndBoom, 0.6);
+            spawnExplosion(e.x+e.w/2, e.y+e.h/2, e.type==='tank');
+            spawnPopup(e.x+e.w/2, e.y, '+'+e.points, e.type==='tank' ? '255,150,60' : '255,207,63');
+            triggerShake(e.type==='tank' ? 9 : 5, e.type==='tank' ? 0.22 : 0.13);
+            if(boss){
+              arr.splice(ei,1); // boss-fight minion defeated - gone for good
+            } else {
+              registerKill();
+              if(!boss){
+                const fresh = makeEnemy(0, 1, level);
+                Object.assign(e, fresh, {
+                  x: Math.random()*(W-fresh.w),
+                  y: H - 40 - Math.random()*40
+                });
+              }
+            }
+          } else {
+            spawnExplosion(e.x+e.w/2, e.y+e.h/2, false);
+            playSfx(sndBoom, 0.25);
+            triggerShake(3, 0.08);
+          }
+          break;
+        }
+      }
+
+      if(arr !== enemies) break; // level-up/boss-start just replaced the array - stale, stop iterating it
+    }
+
+    if(!boss){
+      const dangerZone = H*0.35;
+      const closeness = Math.max(0, Math.min(1, 1 - (minEnemyY - (player.y+player.h)) / dangerZone));
+      if(closeness > 0){
+        const pulse = 0.5 + 0.5*Math.sin(performance.now()/120);
+        const alpha = closeness*0.35*pulse + closeness*0.15;
+        const spread = 40 + closeness*60;
+        document.getElementById('danger').style.boxShadow = `inset 0 0 ${spread}px 10px rgba(255,40,40,${alpha})`;
+      } else {
+        document.getElementById('danger').style.boxShadow = 'inset 0 0 0 0 rgba(255,40,40,0)';
+      }
+    }
+  }
+
+  function render(){
+    ctx.save();
+    if(shakeTime > 0 && shakeMag > 0){
+      const dx = (Math.random()*2-1)*shakeMag;
+      const dy = (Math.random()*2-1)*shakeMag;
+      ctx.translate(dx, dy);
+    }
+
+    drawBackgroundImg();
+
+    if(boss){
+      const b = boss;
+      const tpl = b.tpl;
+      ctx.save();
+      ctx.globalAlpha = tpl.ghost ? Math.max(0.18, b.ghostAlpha) : 1;
+      const drawBossFn = tpl.shape === 'rat' ? drawRat : drawWorm;
+      drawBossFn(b.x, b.y, b.w, b.h, b.dir, 0, tpl.palette, { spiky: tpl.spiky });
+      ctx.restore();
+      if(b.hitFlash > 0){
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, b.hitFlash / 0.15) * 0.5;
+        ctx.fillStyle = '#ff3030';
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.restore();
+      }
+      const shields = bossShieldPoints(b);
+      const pulse = 0.6 + 0.4*Math.sin(performance.now()/90);
+      for(const shield of shields){
+        drawShieldEmblem(shield.x, shield.y, shield.r, pulse);
+      }
+      // render enemies spawned by a boss (e.g. Queen's minions) alongside it
+      for(const e of enemies){
+        const def = ENEMY_TYPES[e.type];
+        const palette = def.palette(e);
+        drawWorm(e.x, e.y, e.w, e.h, e.dir, e.animPhase, palette, palette);
+      }
+    } else {
+      for(const e of enemies){
+        const def = ENEMY_TYPES[e.type];
+        const palette = def.palette(e);
+        drawWorm(e.x, e.y, e.w, e.h, e.dir, e.animPhase, palette, palette);
+        if(e.shielded){
+          const cx = e.x+e.w/2, cy = e.y+e.h/2;
+          const r = Math.max(e.w,e.h)*0.62;
+          drawShieldEmblem(cx, cy, r, 0.6+0.4*Math.sin(performance.now()/110));
+        }
+      }
+    }
+
+    for(const b of bullets){
+      if(imgBullet.complete && imgBullet.naturalWidth){
+        ctx.drawImage(imgBullet, b.x, b.y, BULLET_W, BULLET_H);
+      }
+    }
+
+    renderSpits();
+
+    const blinking = invulnTime > 0 && Math.floor(invulnTime*14)%2===0;
+    if(!blinking && imgPlayer.complete && imgPlayer.naturalWidth){
+      ctx.drawImage(imgPlayer, player.x, player.y, player.w, player.h);
+      drawPropellers(player.x, player.y, player.w, player.h);
+    }
+
+    renderExplosions();
+    renderPopups();
+    ctx.restore();
+  }
+
+  function gameOver(){
+    running = false;
+    playSfx(sndBoom, 0.7);
+    spawnExplosion(player.x+player.w/2, player.y+player.h/2, true);
+    triggerShake(14, 0.35);
+
+    render();
+    document.getElementById('danger').style.boxShadow = 'inset 0 0 0 0 rgba(255,40,40,0)';
+    document.getElementById('bossBarWrap').style.display = 'none';
+    document.getElementById('bossLabel').style.display = 'none';
+
+    if(score > best){
+      best = score;
+      localStorage.setItem(STORAGE_KEY, String(best));
+      document.getElementById('bestVal').textContent = best;
+    }
+    document.getElementById('ovTitle').textContent = 'Mission failed';
+    document.getElementById('ovBig').textContent = 'Score: ' + score;
+    document.getElementById('ovSub').textContent = 'Level ' + level + '. Shields depleted.';
+    document.getElementById('startBtn').textContent = 'Try again';
+
+    // Revive progression: the FIRST time you run out of shields, sharing the
+    // game with a friend gets you back in. Fail again and a rewarded ad
+    // becomes the option instead. After that, it's really over.
+    document.getElementById('shareShieldBtn').style.display = revivesUsed === 0 ? 'inline-block' : 'none';
+    document.getElementById('watchAdBtn').style.display = revivesUsed === 1 ? 'inline-block' : 'none';
+
+    document.getElementById('overlay').classList.remove('hidden');
+    if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('error'); }
+
+    reportScoreToBot(score);
+  }
+
+  let revivesUsed = 0;
+  function revive(){
+    revivesUsed += 1;
+    shields = 1;
+    invulnTime = INVULN_DURATION;
+    updateShieldHud();
+    document.getElementById('overlay').classList.add('hidden');
+    document.getElementById('shareShieldBtn').style.display = 'none';
+    document.getElementById('watchAdBtn').style.display = 'none';
+    if(boss){
+      document.getElementById('bossBarWrap').style.display = 'block';
+      document.getElementById('bossLabel').style.display = 'block';
+    }
+    running = true;
+    lastT = performance.now();
+    requestAnimationFrame(loop);
+    if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('success'); }
+  }
+  document.getElementById('shareShieldBtn').addEventListener('click', ()=>{
+    shareForReward(revive);
+  });
+  document.getElementById('watchAdBtn').addEventListener('click', ()=>{
+    showRewardedAd(revive);
+  });
+
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    document.getElementById('overlay').classList.add('hidden');
+    resize();
+    resetGame();
+    running = true;
+    lastT = performance.now();
+    requestAnimationFrame(loop);
+
+    // Deep-link testing: index.html?debug=1&level=42 jumps straight there.
+    const levelParam = parseInt(params.get('level'), 10);
+    if(DEBUG_JUMP && !isNaN(levelParam) && levelParam > 1){
+      jumpToLevel(levelParam);
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
