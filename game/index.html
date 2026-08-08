@@ -109,7 +109,7 @@
     <div id="overlay">
       <h1 id="ovTitle">Defend the sky</h1>
       <p class="big" id="ovBig">PTN PNH</p>
-      <p class="sub" id="ovSub">Tilt your phone to steer the drone. Tap anywhere to fire. Worm slime can be shot down with a grenade in flight. Bosses climb no higher than 70% of the screen. 4 shields, 5 kills per level, every 10th level is a unique boss, and the final one at level 100 is a rat. Run out of shields and you get one revive by sharing with a friend, then one more by watching an ad.</p>
+      <p class="sub" id="ovSub">Use the joystick to steer the drone. Tap anywhere (or the red button) to fire. Worm slime can be shot down with a grenade in flight. Bosses climb no higher than 70% of the screen. 4 shields, 5 kills per level, every 10th level is a unique boss, and the final one at level 100 is a rat. Run out of shields and you get one revive by sharing with a friend, then up to 3 more by watching ads.</p>
       <div id="btnRow">
         <button id="startBtn">Start</button>
         <button id="shareShieldBtn" style="display:none;">📤 Share with a friend · +1 shield</button>
@@ -620,7 +620,8 @@
     killsThisLevel = 0;
     boss = null; bossDefeatedForLevel = 0; bossesDefeated = 0;
     spits = [];
-    revivesUsed = 0;
+    shareRevivesUsed = 0;
+    adRevivesUsed = 0;
     document.getElementById('watchAdBtn').style.display = 'none';
     document.getElementById('shareShieldBtn').style.display = 'none';
     updateShieldHud();
@@ -765,99 +766,6 @@
     ()=>{ fireHeld = false; });
 
   let fireHeld = false;
-
-  // -----------------------------------------------------------------------
-  // TILT CONTROLS - the drone drifts left/right/up/down with the phone's
-  // tilt relative to however you were holding it when the run started.
-  // Raw orientation sensors are noisy, so this:
-  //  - averages the first ~15 readings for a stable baseline instead of
-  //    trusting a single (possibly jumpy) first sample,
-  //  - low-pass filters every reading so the drone doesn't twitch,
-  //  - compensates for the screen's rotation angle, since gamma/beta swap
-  //    meaning if the OS has rotated the view,
-  //  - falls back to a visible message (and the D-pad still works) if the
-  //    sensor is denied, unsupported, or this isn't a secure (HTTPS) context.
-  // -----------------------------------------------------------------------
-  let tiltX = 0, tiltY = 0;
-  let tiltBaseline = null;
-  let tiltCalibSamples = [];
-  let tiltListenerAdded = false;
-  const TILT_DEADZONE = 3;     // degrees of wiggle room before it counts as input
-  const TILT_RANGE = 22;       // degrees of tilt beyond the deadzone to reach full speed
-  const TILT_SMOOTHING = 0.22; // 0..1, lower = smoother but laggier
-  const TILT_CALIB_SAMPLES = 15;
-
-  function normalizeTilt(v){
-    const mag = Math.abs(v);
-    if(mag < TILT_DEADZONE) return 0;
-    const scaled = Math.min(1, (mag - TILT_DEADZONE) / TILT_RANGE);
-    return Math.sign(v) * scaled;
-  }
-
-  function screenAngle(){
-    if(screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
-    if(typeof window.orientation === 'number') return window.orientation;
-    return 0;
-  }
-
-  // Rotate the raw gamma/beta pair into "screen space" so tilt feels the
-  // same regardless of whether the OS thinks the device is rotated.
-  function orientedTilt(gamma, beta){
-    const angle = screenAngle();
-    if(angle === 90) return { x: -beta, y: gamma };
-    if(angle === -90 || angle === 270) return { x: beta, y: -gamma };
-    if(angle === 180) return { x: -gamma, y: -beta };
-    return { x: gamma, y: beta };
-  }
-
-  function handleOrientation(e){
-    if(e.gamma === null && e.beta === null) return;
-    const { x: rawX, y: rawY } = orientedTilt(e.gamma || 0, e.beta || 0);
-
-    if(!tiltBaseline){
-      tiltCalibSamples.push({ x: rawX, y: rawY });
-      if(tiltCalibSamples.length >= TILT_CALIB_SAMPLES){
-        const avg = tiltCalibSamples.reduce((a,s)=>({x:a.x+s.x, y:a.y+s.y}), {x:0,y:0});
-        tiltBaseline = { x: avg.x/tiltCalibSamples.length, y: avg.y/tiltCalibSamples.length };
-        document.getElementById('syncMsg').textContent = '';
-      }
-      return; // don't move the drone until calibration settles
-    }
-
-    const targetX = normalizeTilt(rawX - tiltBaseline.x);
-    const targetY = normalizeTilt(rawY - tiltBaseline.y);
-    tiltX += (targetX - tiltX) * TILT_SMOOTHING;
-    tiltY += (targetY - tiltY) * TILT_SMOOTHING;
-  }
-
-  function enableTiltControls(){
-    tiltBaseline = null;
-    tiltCalibSamples = [];
-    tiltX = 0; tiltY = 0;
-
-    if(!window.isSecureContext){
-      document.getElementById('syncMsg').textContent = 'Tilt needs HTTPS - using buttons';
-      return;
-    }
-    if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
-      // iOS 13+ requires an explicit permission prompt triggered by a user gesture
-      DeviceOrientationEvent.requestPermission().then((state)=>{
-        if(state === 'granted'){
-          if(!tiltListenerAdded){ window.addEventListener('deviceorientation', handleOrientation); tiltListenerAdded = true; }
-          document.getElementById('syncMsg').textContent = 'Calibrating tilt — hold still...';
-        } else {
-          document.getElementById('syncMsg').textContent = 'Tilt access denied - using buttons';
-        }
-      }).catch(()=>{
-        document.getElementById('syncMsg').textContent = 'Tilt unavailable - using buttons';
-      });
-    } else if(window.DeviceOrientationEvent){
-      if(!tiltListenerAdded){ window.addEventListener('deviceorientation', handleOrientation); tiltListenerAdded = true; }
-      document.getElementById('syncMsg').textContent = 'Calibrating tilt — hold still...';
-    } else {
-      document.getElementById('syncMsg').textContent = 'No tilt sensor - using buttons';
-    }
-  }
 
   function tryFire(){
     if(!running || overheated) return;
@@ -1296,7 +1204,7 @@
     let dir = 0;
     if(keys.left) dir -= 1;
     if(keys.right) dir += 1;
-    dir = Math.max(-1, Math.min(1, dir + tiltX + joyX));
+    dir = Math.max(-1, Math.min(1, dir + joyX));
     player.x += dir * player.speed * dt;
     if(player.x < 0) player.x = 0;
     if(player.x > W - player.w) player.x = W - player.w;
@@ -1304,7 +1212,7 @@
     let dirY = 0;
     if(keys.up) dirY -= 1;
     if(keys.down) dirY += 1;
-    dirY = Math.max(-1, Math.min(1, dirY + tiltY + joyY));
+    dirY = Math.max(-1, Math.min(1, dirY + joyY));
     player.y += dirY * player.speed * dt;
     const minY = 10, maxY = H*0.42; // stays an aerial defender - can dip down but not join the worms
     if(player.y < minY) player.y = minY;
@@ -1651,11 +1559,11 @@
     document.getElementById('ovSub').textContent = 'Level ' + level + '. Shields depleted.';
     document.getElementById('startBtn').textContent = 'Try again';
 
-    // Revive progression: the FIRST time you run out of shields, sharing the
-    // game with a friend gets you back in. Fail again and a rewarded ad
-    // becomes the option instead. After that, it's really over.
-    document.getElementById('shareShieldBtn').style.display = revivesUsed === 0 ? 'inline-block' : 'none';
-    document.getElementById('watchAdBtn').style.display = revivesUsed === 1 ? 'inline-block' : 'none';
+    // Revive progression: sharing the game with a friend gets you back in
+    // once. After that, a rewarded ad can revive you up to 3 more times
+    // per run. Then it's really over.
+    document.getElementById('shareShieldBtn').style.display = shareRevivesUsed < SHARE_REVIVE_MAX ? 'inline-block' : 'none';
+    document.getElementById('watchAdBtn').style.display = (shareRevivesUsed >= SHARE_REVIVE_MAX && adRevivesUsed < AD_REVIVE_MAX) ? 'inline-block' : 'none';
 
     document.getElementById('overlay').classList.remove('hidden');
     if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('error'); }
@@ -1663,9 +1571,12 @@
     reportScoreToBot(score);
   }
 
-  let revivesUsed = 0;
-  function revive(){
-    revivesUsed += 1;
+  const SHARE_REVIVE_MAX = 1;
+  const AD_REVIVE_MAX = 3;
+  let shareRevivesUsed = 0;
+  let adRevivesUsed = 0;
+  function revive(isAd){
+    if(isAd) adRevivesUsed += 1; else shareRevivesUsed += 1;
     shields = 1;
     invulnTime = INVULN_DURATION;
     updateShieldHud();
@@ -1682,17 +1593,16 @@
     if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('success'); }
   }
   document.getElementById('shareShieldBtn').addEventListener('click', ()=>{
-    shareForReward(revive);
+    shareForReward(()=>revive(false));
   });
   document.getElementById('watchAdBtn').addEventListener('click', ()=>{
-    showRewardedAd(revive);
+    showRewardedAd(()=>revive(true));
   });
 
   document.getElementById('startBtn').addEventListener('click', ()=>{
     document.getElementById('overlay').classList.add('hidden');
     resize();
     resetGame();
-    enableTiltControls(); // (re)calibrates to however the phone is held this run
     running = true;
     lastT = performance.now();
     requestAnimationFrame(loop);
