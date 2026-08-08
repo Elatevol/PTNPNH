@@ -25,13 +25,14 @@
   .shield-dot{ width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 4px var(--accent); }
   .shield-dot.lost{ background:#333; box-shadow:none; }
   #stage{ position:relative; flex:1; min-height:0; }
-  canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; z-index:10; pointer-events:none; }
   #bossBarWrap{ position:absolute; top:8px; left:50%; transform:translateX(-50%); width:70%; max-width:340px;
+    z-index:12;
     height:10px; background:#1a0a14; border:1px solid var(--boss); border-radius:5px; overflow:hidden; display:none; }
   #bossBar{ height:100%; width:100%; background:var(--boss); transition:width 0.15s linear; }
-  #bossLabel{ position:absolute; top:20px; left:50%; transform:translateX(-50%); font-size:9px;
+  #bossLabel{ position:absolute; top:20px; left:50%; transform:translateX(-50%); font-size:9px; z-index:12;
     letter-spacing:3px; color:var(--boss); display:none; }
-  #overlay{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  #overlay{ position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:14px; background:rgba(5,5,5,0.9); text-align:center; padding:24px; }
   #overlay.hidden{display:none;}
   #overlay h1{ margin:0; font-size:15px; letter-spacing:4px; color:var(--accent-2); text-transform:uppercase; }
@@ -48,30 +49,30 @@
     display:flex; align-items:center; justify-content:center; }
   #adSimBox{ display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:24px; }
   #adSimTimer{ font-size:48px; font-weight:bold; color:#5cf; }
-  #controls{ position:absolute; inset:0; pointer-events:none; z-index:15; }
-  #joystickBase{ position:absolute; left:22px; bottom:calc(22px + env(safe-area-inset-bottom));
-    width:150px; height:150px; border-radius:50%; pointer-events:auto;
+  #controls{ position:absolute; inset:0; pointer-events:none; z-index:5; }
+  #joystickBase{ position:absolute; left:18px; bottom:calc(18px + env(safe-area-inset-bottom));
+    width:96px; height:96px; border-radius:50%; pointer-events:auto;
     background:radial-gradient(circle at 50% 40%, rgba(28,28,28,0.55), rgba(15,15,15,0.45));
     border:1px solid rgba(255,207,63,0.28); backdrop-filter:blur(1px); touch-action:none; }
-  #joystickKnob{ position:absolute; top:50%; left:50%; width:66px; height:66px; border-radius:50%;
+  #joystickKnob{ position:absolute; top:50%; left:50%; width:42px; height:42px; border-radius:50%;
     background:radial-gradient(circle at 35% 30%, rgba(58,58,58,0.9), rgba(22,22,22,0.85)); border:1px solid var(--accent);
-    margin:-33px 0 0 -33px; box-shadow:0 0 10px rgba(255,207,63,0.4); pointer-events:none; }
-  #fireBtnRound{ position:absolute; right:22px; bottom:calc(22px + env(safe-area-inset-bottom));
-    width:150px; height:150px; border-radius:50%; pointer-events:auto;
+    margin:-21px 0 0 -21px; box-shadow:0 0 8px rgba(255,207,63,0.4); pointer-events:none; }
+  #fireBtnRound{ position:absolute; right:18px; bottom:calc(18px + env(safe-area-inset-bottom));
+    width:96px; height:96px; border-radius:50%; pointer-events:auto;
     background:radial-gradient(circle at 50% 40%, rgba(58,16,16,0.5), rgba(26,8,8,0.4));
     border:1px solid rgba(255,77,77,0.4); backdrop-filter:blur(1px);
     display:flex; align-items:center; justify-content:center; color:var(--accent-2);
-    font-size:15px; letter-spacing:2px; font-weight:bold; touch-action:none; }
+    font-size:12px; letter-spacing:2px; font-weight:bold; touch-action:none; }
   #fireBtnRound:active, #fireBtnRound.active{ background:radial-gradient(circle at 50% 40%, rgba(255,77,77,0.75), rgba(122,16,16,0.65));
-    color:#1a0000; box-shadow:0 0 16px rgba(255,77,77,0.6); }
-  #syncMsg{ position:absolute; top:52px; left:0; right:0; text-align:center; font-size:10px;
+    color:#1a0000; box-shadow:0 0 14px rgba(255,77,77,0.6); }
+  #syncMsg{ position:absolute; top:52px; left:0; right:0; z-index:12; text-align:center; font-size:10px;
     color:var(--text-dim); letter-spacing:1px; pointer-events:none; }
-  #danger{ position:absolute; inset:0; pointer-events:none; box-shadow: inset 0 0 0 0 rgba(255,40,40,0);
+  #danger{ position:absolute; inset:0; z-index:12; pointer-events:none; box-shadow: inset 0 0 0 0 rgba(255,40,40,0);
     transition: box-shadow 0.08s linear; }
-  #heatWrap{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+  #heatWrap{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%); z-index:12;
     width:120px; height:6px; background:#1a1a1a; border:1px solid var(--line); border-radius:3px; overflow:hidden; }
   #heatBar{ height:100%; width:0%; background:var(--accent-2); transition:width 0.08s linear, background 0.15s linear; }
-  #heatLabel{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+  #heatLabel{ position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:12;
     font-size:9px; letter-spacing:2px; color:var(--accent-2); opacity:0; transition:opacity 0.15s; }
   #heatLabel.show{ opacity:1; }
   #debugPanel{ position:absolute; top:8px; left:8px; z-index:20;
@@ -699,7 +700,7 @@
     if(e.key === ' ') fireHeld = false;
   });
   function bindHold(el, onDown, onUp){
-    const down=(e)=>{e.preventDefault();onDown();}, up=(e)=>{e.preventDefault();onUp();};
+    const down=(e)=>{e.preventDefault();e.stopPropagation();onDown();}, up=(e)=>{e.preventDefault();e.stopPropagation();onUp();};
     el.addEventListener('touchstart', down, {passive:false});
     el.addEventListener('touchend', up, {passive:false});
     el.addEventListener('touchcancel', up, {passive:false});
@@ -716,7 +717,7 @@
     const base = document.getElementById('joystickBase');
     const knob = document.getElementById('joystickKnob');
     let active = false, center = {x:0,y:0};
-    const RADIUS = 34;
+    const RADIUS = 22;
 
     function pointerPos(e){
       const t = e.touches && e.touches.length ? e.touches[0] : e;
@@ -724,6 +725,7 @@
     }
     function start(e){
       e.preventDefault();
+      e.stopPropagation();
       active = true;
       const rect = base.getBoundingClientRect();
       center = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
@@ -732,6 +734,7 @@
     function move(e){
       if(!active) return;
       e.preventDefault();
+      e.stopPropagation();
       const p = pointerPos(e);
       let dx = p.x - center.x, dy = p.y - center.y;
       const dist = Math.hypot(dx, dy);
@@ -741,7 +744,7 @@
       joyY = dy / RADIUS;
     }
     function end(e){
-      if(e) e.preventDefault();
+      if(e){ e.preventDefault(); e.stopPropagation(); }
       active = false;
       joyX = 0; joyY = 0;
       knob.style.transform = 'translate(0,0)';
@@ -761,8 +764,10 @@
     ()=>{ fireHeld = false; fireBtn.classList.remove('active'); });
 
   // Tap/hold anywhere on the play area to fire - the round fire button still
-  // works too, this just makes the whole screen a trigger.
-  bindHold(canvas,
+  // works too, this just makes the whole screen a trigger. Bound to the
+  // stage (not the canvas) since the canvas has pointer-events:none so worms
+  // can render visually above the joystick/fire button.
+  bindHold(stage,
     ()=>{ fireHeld = true; },
     ()=>{ fireHeld = false; });
 
