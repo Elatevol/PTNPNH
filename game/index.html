@@ -111,7 +111,7 @@
     <div id="overlay">
       <h1 id="ovTitle">Defend the sky</h1>
       <p class="big" id="ovBig">PTN PNH</p>
-      <p class="sub" id="ovSub">Use the joystick to steer the drone. Tap anywhere (or the red button) to fire. Worm slime can be shot down with a grenade in flight. Bosses climb no higher than 70% of the screen. 4 shields, 5 kills per level, every 10th level is a unique boss, and the final one at level 100 is a rat. Run out of shields and you get one revive by sharing with a friend, then up to 3 more by watching ads.</p>
+      <p class="sub" id="ovSub">Shoot the swarm. Crush every boss. Prove you can reach the end.</p>
       <div id="btnRow">
         <button id="startBtn">Start</button>
         <button id="shareShieldBtn" style="display:none;">📤 Share with a friend · +1 shield</button>
@@ -764,12 +764,6 @@
   bindHold(fireBtn,
     ()=>{ fireHeld = true; fireBtn.classList.add('active'); },
     ()=>{ fireHeld = false; fireBtn.classList.remove('active'); });
-
-  // Tap/hold anywhere on the play area to fire - the round fire button still
-  // works too, this just makes the whole screen a trigger.
-  bindHold(canvas,
-    ()=>{ fireHeld = true; },
-    ()=>{ fireHeld = false; });
 
   let fireHeld = false;
 
