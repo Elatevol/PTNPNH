@@ -146,30 +146,68 @@
     try { tg.setHeaderColor('#0a0e0a'); } catch(e){}
   }
 
-  const SCORE_ENDPOINT = 'https://YOUR-BACKEND-URL.example.com/api/score';
+  const SCORE_ENDPOINT = 'https://ptnpnh.onrender.com/api/score';
 
   // =====================================================================
   // SHARE-FOR-SHIELD - the first time you run out of shields, sharing the
   // game with a friend (instead of watching an ad) revives you with +1
   // shield. Set this to your bot's public game link once deployed.
+  //
+  // NOTE ON THE LINK FORMAT: Telegram's official deep-linking only supports
+  // ?start= / ?startgroup= query params (see core.telegram.org/bots#deep-linking).
+  // There's no such thing as a "?game=" URL param - a link like that just
+  // opens a normal chat with the bot, it does NOT auto-launch the game. If
+  // you want the shared link to actually start the game, point people at
+  // your bot with /play in the text instead, e.g. SHARE_TEXT below.
   // =====================================================================
-  const SHARE_URL = 'https://t.me/YOUR_BOT_USERNAME';
-  const SHARE_TEXT = 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score!';
+  const SHARE_URL = 'https://t.me/ptn_pnh_game_bot';
+  const SHARE_TEXT = 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score! Send /play to the bot to start.';
 
+  // Telegram's classic Games platform renders the game inside a sandboxed
+  // iframe. That sandbox frequently blocks BOTH tg.openTelegramLink() and
+  // window.open() from doing anything at all - silently, with no error - so
+  // clicking "Share" can look like it does nothing. This tries every method
+  // in order and, if none of them can actually navigate anywhere, falls back
+  // to copying the message to the clipboard so the person can paste it
+  // themselves - that always works regardless of iframe restrictions.
   function openShareSheet(){
     const url = 'https://t.me/share/url?url=' + encodeURIComponent(SHARE_URL) + '&text=' + encodeURIComponent(SHARE_TEXT);
-    if(tg && tg.openTelegramLink){
-      tg.openTelegramLink(url);
-    } else {
-      window.open(url, '_blank');
+    if(tg && typeof tg.openTelegramLink === 'function'){
+      try{ tg.openTelegramLink(url); return 'navigated'; }catch(e){ console.warn('openTelegramLink failed', e); }
     }
+    try{
+      const win = window.open(url, '_blank');
+      if(win) return 'navigated';
+    }catch(e){ console.warn('window.open failed', e); }
+    return 'blocked';
   }
 
   // We can't get a real "message sent" callback from Telegram's share sheet,
   // so - like most share-to-unlock flows - we use the standard heuristic:
   // grant the reward once the player returns to the game after the share
   // sheet was opened (tab/webview regains focus or becomes visible again).
+  // If navigation was blocked entirely (sandboxed iframe), there's no "leave
+  // and return" to detect, so we copy the message to the clipboard instead
+  // and grant the reward right away.
   function shareForReward(onReward){
+    const result = openShareSheet();
+
+    if(result === 'blocked'){
+      const text = SHARE_TEXT + ' ' + SHARE_URL;
+      const grant = (copied)=>{
+        document.getElementById('syncMsg').textContent = copied
+          ? 'Link copied — paste it to a friend!'
+          : 'Share text: ' + text;
+        onReward();
+      };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(()=>grant(true)).catch(()=>grant(false));
+      } else {
+        grant(false);
+      }
+      return;
+    }
+
     let claimed = false;
     const claim = ()=>{
       if(claimed) return;
@@ -181,7 +219,6 @@
     const onVisible = ()=>{ if(document.visibilityState === 'visible') claim(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', claim);
-    openShareSheet();
   }
 
   // =====================================================================

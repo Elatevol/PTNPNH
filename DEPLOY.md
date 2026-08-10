@@ -54,25 +54,61 @@ https://ВАШ_НІК.gitlab.io/ptn-pnh-game/index.html
 
 ## Крок 3. Налаштувати й задеплоїти бота (Render.com, безкоштовно)
 
-1. Заповніть `bot/.env.example` → перейменуйте на `.env` (для локального тесту) або внесіть ці ж значення як **Environment Variables** на Render:
-   - `BOT_TOKEN` — токен з кроку 1
-   - `GAME_SHORT_NAME` — short name з кроку 1
-   - `GAME_URL` — посилання з кроку 2 (обовʼязково `.../index.html`)
-   - `SIGNING_SECRET` — будь-який довгий випадковий рядок (наприклад, згенерований `openssl rand -hex 32`)
-2. Створіть новий **Web Service** на [render.com](https://render.com), підключіть репозиторій із папкою `bot/`:
-   - Build command: `npm install`
-   - Start command: `npm start`
-3. Після деплою Render дасть публічний URL, напр. `https://ptn-pnh-bot.onrender.com`.
+### 3.1. Реєстрація
+Зайдіть на [render.com](https://render.com) → Sign Up → увійдіть через GitHub чи GitLab (той сервіс, куди ви запушили `bot/`). Render попросить дозвіл читати ваші репозиторії — це нормально. Безкоштовний акаунт не вимагає картки для Web Service.
 
-### Прописати вебхук
+### 3.2. Створення Web Service
+На дашборді → **New → Web Service** → оберіть репозиторій із `bot/`.
 
-Скажіть Telegram надсилати оновлення на ваш сервер (замініть значення):
+- Якщо `bot/` — підпапка в тому ж репозиторії, що й гра (а не окремий репо), обовʼязково вкажіть **Root Directory: bot** — інакше Render шукатиме `package.json` у корені й не знайде його.
+- **Name**: будь-яке (напр. `ptn-pnh-bot`) — стане частиною URL.
+- **Region**: найближчий до вашої аудиторії.
+- **Branch**: main.
+- **Environment**: Node.
+- **Build Command**: `npm install`
+- **Start Command**: `npm start`
+- **Instance Type**: Free (достатньо для тестування й невеликого навантаження).
+
+### 3.3. Змінні середовища
+У розділі **Environment** налаштувань сервісу натисніть **Add Environment Variable** і додайте кожну зі змінних `bot/.env.example` окремо:
+
+| Змінна | Звідки взяти |
+|---|---|
+| `BOT_TOKEN` | Токен від @BotFather (крок 1) |
+| `GAME_SHORT_NAME` | Short name, вказаний у `/newgame` (крок 1) |
+| `GAME_URL` | Посилання на задеплоєний `index.html` гри (крок 2) |
+| `SIGNING_SECRET` | Згенеруйте: `openssl rand -hex 32` |
+
+`PORT` можна не додавати — Render сам підставляє порт через змінну середовища, а `server.js` вже читає `process.env.PORT` з фолбеком на 3000.
+
+**Ніколи не вставляйте ці значення в код чи в git** — тільки сюди, в Environment.
+
+### 3.4. Перший деплой
+Натисніть **Create Web Service**. На вкладці **Logs** видно збірку в реальному часі: `npm install`, потім `npm start`. Успіх — рядок `PTN-PNH bot server listening on :10000` (чи інший порт) і зелений статус **Live** угорі. Перший деплой займає 2-5 хвилин.
+
+### 3.5. Перевірка
+Render видасть публічний URL, напр. `https://ptn-pnh-bot.onrender.com`. Відкрийте `https://ptn-pnh-bot.onrender.com/health` у браузері — має повернути `{"ok":true}`. Якщо ні — дивіться Logs.
+
+### 3.6. Вебхук
+
+Скажіть Telegram надсилати оновлення на ваш сервер:
 
 ```bash
 curl "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://ptn-pnh-bot.onrender.com/webhook"
 ```
 
-Успішна відповідь: `{"ok":true,"result":true,...}`.
+Успішна відповідь: `{"ok":true,"result":true,...}`. Перевірити стан вебхука будь-коли:
+
+```bash
+curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"
+```
+— там видно ваш URL і чи були помилки доставки (`last_error_message`).
+
+### 3.7. Особливість безкоштовного плану
+Сервіс **засинає після ~15 хв без запитів** і "прокидається" за 30-50 секунд на перший запит. Перший `/play` після паузи може здатись підвислим — це нормально, не баг. Якщо потрібна миттєва відповідь завжди — платний план "Starter" (~$7/міс) прибирає засинання.
+
+### 3.8. Подальші оновлення
+Кожен `git push` у main автоматично тригерить новий деплой (видно в Logs: "Deploying" → "Live"). Зміну змінних середовища теж треба зберегти кнопкою **Save Changes** — сервіс перезапуститься сам, без потреби пушити код.
 
 ---
 
