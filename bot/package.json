@@ -1,7 +1,7 @@
 {
   "name": "ptn-pnh-bot",
   "version": "1.0.0",
-  "description": "Telegram Games backend for PTN-PNH (sendGame + setGameScore)",
+  "description": "Telegram Mini App backend for PTN-PNH (web_app launch + score API)",
   "main": "server.js",
   "type": "commonjs",
   "engines": { "node": ">=18" },

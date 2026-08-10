@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>ПТН ПНХ</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://telegram.org/js/games.js"></script>
 <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 <style>
   :root{
@@ -151,25 +150,31 @@
   // =====================================================================
   // SHARE-FOR-SHIELD - the first time you run out of shields, sharing the
   // game with a friend (instead of watching an ad) revives you with +1
-  // shield. Set this to your bot's public game link once deployed.
+  // shield.
   //
   // NOTE ON THE LINK FORMAT: Telegram's official deep-linking only supports
   // ?start= / ?startgroup= query params (see core.telegram.org/bots#deep-linking).
-  // There's no such thing as a "?game=" URL param - a link like that just
-  // opens a normal chat with the bot, it does NOT auto-launch the game. If
-  // you want the shared link to actually start the game, point people at
-  // your bot with /play in the text instead, e.g. SHARE_TEXT below.
+  // Point people at the bot with /play in the message text so they know what
+  // to do once they open the chat.
   // =====================================================================
   const SHARE_URL = 'https://t.me/ptn_pnh_game_bot';
   const SHARE_TEXT = 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score! Send /play to the bot to start.';
 
-  // Telegram's classic Games platform renders the game inside a sandboxed
-  // iframe. That sandbox frequently blocks BOTH tg.openTelegramLink() and
-  // window.open() from doing anything at all - silently, with no error - so
-  // clicking "Share" can look like it does nothing. This tries every method
-  // in order and, if none of them can actually navigate anywhere, falls back
-  // to copying the message to the clipboard so the person can paste it
-  // themselves - that always works regardless of iframe restrictions.
+  function copyShareText(onDone){
+    const text = SHARE_TEXT + ' ' + SHARE_URL;
+    const msg = document.getElementById('syncMsg');
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text)
+        .then(()=>{ msg.textContent = 'Link copied — paste it to a friend!'; onDone(); })
+        .catch(()=>{ msg.textContent = 'Share text: ' + text; onDone(); });
+    } else {
+      msg.textContent = 'Share text: ' + text;
+      onDone();
+    }
+  }
+
+  // In a real Mini App (unlike the classic Games iframe), openTelegramLink
+  // properly opens Telegram's native share sheet without closing the app.
   function openShareSheet(){
     const url = 'https://t.me/share/url?url=' + encodeURIComponent(SHARE_URL) + '&text=' + encodeURIComponent(SHARE_TEXT);
     if(tg && typeof tg.openTelegramLink === 'function'){
@@ -186,25 +191,14 @@
   // so - like most share-to-unlock flows - we use the standard heuristic:
   // grant the reward once the player returns to the game after the share
   // sheet was opened (tab/webview regains focus or becomes visible again).
-  // If navigation was blocked entirely (sandboxed iframe), there's no "leave
-  // and return" to detect, so we copy the message to the clipboard instead
-  // and grant the reward right away.
+  // If navigation was blocked entirely (e.g. opened as a plain page with
+  // popups blocked), there's no "leave and return" to detect, so we copy
+  // to clipboard and grant the reward right away instead.
   function shareForReward(onReward){
     const result = openShareSheet();
 
     if(result === 'blocked'){
-      const text = SHARE_TEXT + ' ' + SHARE_URL;
-      const grant = (copied)=>{
-        document.getElementById('syncMsg').textContent = copied
-          ? 'Link copied — paste it to a friend!'
-          : 'Share text: ' + text;
-        onReward();
-      };
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(text).then(()=>grant(true)).catch(()=>grant(false));
-      } else {
-        grant(false);
-      }
+      copyShareText(onReward);
       return;
     }
 
@@ -264,14 +258,10 @@
   }
 
   const params = new URLSearchParams(window.location.search);
-  const tgCtx = {
-    user_id: params.get('user_id'),
-    chat_id: params.get('chat_id'),
-    message_id: params.get('message_id'),
-    inline_message_id: params.get('inline_message_id'),
-    sig: params.get('sig')
-  };
-  const isTelegramGame = !!(tgCtx.user_id && tgCtx.sig);
+  // A real Mini App identifies the player via tg.initData (a signed string
+  // the backend verifies with the bot token) - not via URL params injected
+  // by a callback_query the way the classic Games platform worked.
+  const isTelegramMiniApp = !!(tg && tg.initData);
 
   // TESTING:
   // ?debug=1  -> reveals the level-jump panel (jump to any level, including
@@ -330,11 +320,11 @@
   }
 
   function reportScoreToBot(score){
-    if(!isTelegramGame) return;
+    if(!isTelegramMiniApp) return;
     fetch(SCORE_ENDPOINT, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ ...tgCtx, score })
+      body: JSON.stringify({ initData: tg.initData, score })
     }).then(r=>r.json()).then(res=>{
       document.getElementById('syncMsg').textContent = res && res.ok ? 'Score saved ✓' : '';
     }).catch(()=>{ document.getElementById('syncMsg').textContent = ''; });
