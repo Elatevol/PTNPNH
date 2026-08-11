@@ -151,11 +151,6 @@
   // SHARE-FOR-SHIELD - the first time you run out of shields, sharing the
   // game with a friend (instead of watching an ad) revives you with +1
   // shield.
-  //
-  // NOTE ON THE LINK FORMAT: Telegram's official deep-linking only supports
-  // ?start= / ?startgroup= query params (see core.telegram.org/bots#deep-linking).
-  // Point people at the bot with /play in the message text so they know what
-  // to do once they open the chat.
   // =====================================================================
   const SHARE_URL = 'https://t.me/ptn_pnh_game_bot';
   const SHARE_TEXT = 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score! Send /play to the bot to start.';
@@ -173,9 +168,22 @@
     }
   }
 
-  // In a real Mini App (unlike the classic Games iframe), openTelegramLink
-  // properly opens Telegram's native share sheet without closing the app.
+  // switchInlineQuery is the method Telegram documents specifically for
+  // sharing FROM inside a Mini App while returning the player back to it
+  // afterwards - it opens the normal "choose a chat" picker in inline mode
+  // (requires Inline Mode to be ON for the bot in @BotFather; the backend
+  // answers the inline query - see server.js) and, unlike openTelegramLink,
+  // is designed to hand control back to this Mini App once the user is done
+  // picking a chat, instead of just closing it.
   function openShareSheet(){
+    if(tg && typeof tg.switchInlineQuery === 'function'){
+      try{
+        tg.switchInlineQuery('share', ['users','groups','channels']);
+        return 'navigated';
+      }catch(e){ console.warn('switchInlineQuery failed', e); }
+    }
+    // Fallback for contexts where inline mode / switchInlineQuery isn't
+    // available (e.g. opened as a plain web page outside Telegram).
     const url = 'https://t.me/share/url?url=' + encodeURIComponent(SHARE_URL) + '&text=' + encodeURIComponent(SHARE_TEXT);
     if(tg && typeof tg.openTelegramLink === 'function'){
       try{ tg.openTelegramLink(url); return 'navigated'; }catch(e){ console.warn('openTelegramLink failed', e); }
@@ -187,13 +195,12 @@
     return 'blocked';
   }
 
-  // We can't get a real "message sent" callback from Telegram's share sheet,
-  // so - like most share-to-unlock flows - we use the standard heuristic:
-  // grant the reward once the player returns to the game after the share
-  // sheet was opened (tab/webview regains focus or becomes visible again).
-  // If navigation was blocked entirely (e.g. opened as a plain page with
-  // popups blocked), there's no "leave and return" to detect, so we copy
-  // to clipboard and grant the reward right away instead.
+  // We still can't get a real "message sent" callback, so the reward is
+  // granted via the same heuristic as before: once the player is back and
+  // the page is visible/focused again, treat it as done. With
+  // switchInlineQuery this now fires automatically as soon as Telegram
+  // returns control to the Mini App, instead of requiring the player to
+  // manually navigate back.
   function shareForReward(onReward){
     const result = openShareSheet();
 
