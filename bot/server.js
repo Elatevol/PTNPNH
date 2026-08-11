@@ -98,16 +98,12 @@ function saveLeaderboard(data) {
 }
 
 // ---------------------------------------------------------------------
-// One-time-ish setup: persistent menu button + cache the bot's own
-// username (needed to build share links, avoids a getMe call per share)
+// One-time-ish setup: persistent menu button (safe to call on every boot)
 // ---------------------------------------------------------------------
-let botUsername = null;
 async function setupMenuButton() {
   await tg('setChatMenuButton', {
     menu_button: { type: 'web_app', text: 'Play', web_app: { url: GAME_URL } }
   });
-  const me = await tg('getMe', {});
-  botUsername = me.result && me.result.username;
 }
 
 // ---------------------------------------------------------------------
@@ -126,30 +122,6 @@ app.post('/webhook', async (req, res) => {
       });
     }
 
-    // Powers the in-game "Share with a friend" button, which calls
-    // Telegram.WebApp.switchInlineQuery() - that opens Telegram's normal
-    // chat picker and, unlike openTelegramLink/window.open, properly
-    // returns the player to the Mini App afterwards. Requires Inline Mode
-    // to be turned on for the bot in @BotFather.
-    if (update.inline_query) {
-      const uname = botUsername || (await tg('getMe', {})).result.username;
-      await tg('answerInlineQuery', {
-        inline_query_id: update.inline_query.id,
-        cache_time: 0,
-        results: [{
-          type: 'article',
-          id: 'share-ptn-pnh',
-          title: 'Share PTN PNH',
-          description: 'Invite a friend to defend the sky with you',
-          input_message_content: {
-            message_text: 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score! \ud83e\udea9\nhttps://t.me/' + uname
-          },
-          reply_markup: {
-            inline_keyboard: [[{ text: '▶ Play PTN PNH', url: 'https://t.me/' + uname }]]
-          }
-        }]
-      });
-    }
   } catch (e) {
     console.error('webhook error', e);
   }

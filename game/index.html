@@ -37,12 +37,11 @@
   #overlay .big{ font-size:36px; color:var(--text); letter-spacing:2px; margin:0; }
   #overlay .sub{ color:var(--text-dim); font-size:12px; letter-spacing:1px; max-width:290px; line-height:1.6;}
   #btnRow{ display:flex; flex-direction:column; gap:10px; margin-top:6px; align-items:center; }
-  #startBtn, #watchAdBtn, #shareShieldBtn{ background:var(--accent); color:#1a1400; border:none; padding:14px 28px;
+  #startBtn, #watchAdBtn{ background:var(--accent); color:#1a1400; border:none; padding:14px 28px;
     font-family:inherit; font-weight:bold; letter-spacing:2px; font-size:13px; text-transform:uppercase;
     border-radius:2px; cursor:pointer; }
   #watchAdBtn{ background:transparent; color:#5cf; border:1px solid #5cf; }
-  #shareShieldBtn{ background:transparent; color:#5cff8f; border:1px solid #5cff8f; }
-  #startBtn:active, #watchAdBtn:active, #shareShieldBtn:active{ transform:translateY(1px); }
+  #startBtn:active, #watchAdBtn:active{ transform:translateY(1px); }
   #adSimOverlay{ position:absolute; inset:0; z-index:50; background:rgba(0,0,0,0.94);
     display:flex; align-items:center; justify-content:center; }
   #adSimBox{ display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:24px; }
@@ -113,7 +112,6 @@
       <p class="sub" id="ovSub">Shoot the swarm. Crush every boss. Prove you can reach the end.</p>
       <div id="btnRow">
         <button id="startBtn">Start</button>
-        <button id="shareShieldBtn" style="display:none;">📤 Share with a friend · +1 shield</button>
         <button id="watchAdBtn" style="display:none;">▶ Watch ad · +1 shield</button>
       </div>
     </div>
@@ -146,81 +144,6 @@
   }
 
   const SCORE_ENDPOINT = 'https://ptnpnh.onrender.com/api/score';
-
-  // =====================================================================
-  // SHARE-FOR-SHIELD - the first time you run out of shields, sharing the
-  // game with a friend (instead of watching an ad) revives you with +1
-  // shield.
-  // =====================================================================
-  const SHARE_URL = 'https://t.me/ptn_pnh_game_bot';
-  const SHARE_TEXT = 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score! Send /play to the bot to start.';
-
-  function copyShareText(onDone){
-    const text = SHARE_TEXT + ' ' + SHARE_URL;
-    const msg = document.getElementById('syncMsg');
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text)
-        .then(()=>{ msg.textContent = 'Link copied — paste it to a friend!'; onDone(); })
-        .catch(()=>{ msg.textContent = 'Share text: ' + text; onDone(); });
-    } else {
-      msg.textContent = 'Share text: ' + text;
-      onDone();
-    }
-  }
-
-  // switchInlineQuery is the method Telegram documents specifically for
-  // sharing FROM inside a Mini App while returning the player back to it
-  // afterwards - it opens the normal "choose a chat" picker in inline mode
-  // (requires Inline Mode to be ON for the bot in @BotFather; the backend
-  // answers the inline query - see server.js) and, unlike openTelegramLink,
-  // is designed to hand control back to this Mini App once the user is done
-  // picking a chat, instead of just closing it.
-  function openShareSheet(){
-    if(tg && typeof tg.switchInlineQuery === 'function'){
-      try{
-        tg.switchInlineQuery('share', ['users','groups','channels']);
-        return 'navigated';
-      }catch(e){ console.warn('switchInlineQuery failed', e); }
-    }
-    // Fallback for contexts where inline mode / switchInlineQuery isn't
-    // available (e.g. opened as a plain web page outside Telegram).
-    const url = 'https://t.me/share/url?url=' + encodeURIComponent(SHARE_URL) + '&text=' + encodeURIComponent(SHARE_TEXT);
-    if(tg && typeof tg.openTelegramLink === 'function'){
-      try{ tg.openTelegramLink(url); return 'navigated'; }catch(e){ console.warn('openTelegramLink failed', e); }
-    }
-    try{
-      const win = window.open(url, '_blank');
-      if(win) return 'navigated';
-    }catch(e){ console.warn('window.open failed', e); }
-    return 'blocked';
-  }
-
-  // We still can't get a real "message sent" callback, so the reward is
-  // granted via the same heuristic as before: once the player is back and
-  // the page is visible/focused again, treat it as done. With
-  // switchInlineQuery this now fires automatically as soon as Telegram
-  // returns control to the Mini App, instead of requiring the player to
-  // manually navigate back.
-  function shareForReward(onReward){
-    const result = openShareSheet();
-
-    if(result === 'blocked'){
-      copyShareText(onReward);
-      return;
-    }
-
-    let claimed = false;
-    const claim = ()=>{
-      if(claimed) return;
-      claimed = true;
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', claim);
-      onReward();
-    };
-    const onVisible = ()=>{ if(document.visibilityState === 'visible') claim(); };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', claim);
-  }
 
   // =====================================================================
   // REWARDED ADS (Adsgram) - watch an ad on Game Over to get +1 shield and
@@ -644,7 +567,6 @@
     document.getElementById('ovSub').textContent = 'The rat is destroyed. Level ' + LAST_LEVEL + ' — game complete!';
     document.getElementById('startBtn').textContent = 'Play again';
     document.getElementById('watchAdBtn').style.display = 'none';
-    document.getElementById('shareShieldBtn').style.display = 'none';
     document.getElementById('overlay').classList.remove('hidden');
     if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('success'); }
 
@@ -658,10 +580,8 @@
     killsThisLevel = 0;
     boss = null; bossDefeatedForLevel = 0; bossesDefeated = 0;
     spits = [];
-    shareRevivesUsed = 0;
     adRevivesUsed = 0;
     document.getElementById('watchAdBtn').style.display = 'none';
-    document.getElementById('shareShieldBtn').style.display = 'none';
     updateShieldHud();
     document.getElementById('scoreVal').textContent = score;
     document.getElementById('lvlVal').textContent = level + '/' + LAST_LEVEL;
@@ -1593,11 +1513,9 @@
     document.getElementById('ovSub').textContent = 'Level ' + level + '. Shields depleted.';
     document.getElementById('startBtn').textContent = 'Try again';
 
-    // Revive progression: sharing the game with a friend gets you back in
-    // once. After that, a rewarded ad can revive you up to 3 more times
-    // per run. Then it's really over.
-    document.getElementById('shareShieldBtn').style.display = shareRevivesUsed < SHARE_REVIVE_MAX ? 'inline-block' : 'none';
-    document.getElementById('watchAdBtn').style.display = (shareRevivesUsed >= SHARE_REVIVE_MAX && adRevivesUsed < AD_REVIVE_MAX) ? 'inline-block' : 'none';
+    // Revive progression: a rewarded ad can revive you up to 3 times per
+    // run. Then it's really over.
+    document.getElementById('watchAdBtn').style.display = adRevivesUsed < AD_REVIVE_MAX ? 'inline-block' : 'none';
 
     document.getElementById('overlay').classList.remove('hidden');
     if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('error'); }
@@ -1605,17 +1523,14 @@
     reportScoreToBot(score);
   }
 
-  const SHARE_REVIVE_MAX = 1;
   const AD_REVIVE_MAX = 3;
-  let shareRevivesUsed = 0;
   let adRevivesUsed = 0;
-  function revive(isAd){
-    if(isAd) adRevivesUsed += 1; else shareRevivesUsed += 1;
+  function revive(){
+    adRevivesUsed += 1;
     shields = 1;
     invulnTime = INVULN_DURATION;
     updateShieldHud();
     document.getElementById('overlay').classList.add('hidden');
-    document.getElementById('shareShieldBtn').style.display = 'none';
     document.getElementById('watchAdBtn').style.display = 'none';
     if(boss){
       document.getElementById('bossBarWrap').style.display = 'block';
@@ -1626,11 +1541,8 @@
     requestAnimationFrame(loop);
     if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('success'); }
   }
-  document.getElementById('shareShieldBtn').addEventListener('click', ()=>{
-    shareForReward(()=>revive(false));
-  });
   document.getElementById('watchAdBtn').addEventListener('click', ()=>{
-    showRewardedAd(()=>revive(true));
+    showRewardedAd(revive);
   });
 
   document.getElementById('startBtn').addEventListener('click', ()=>{
