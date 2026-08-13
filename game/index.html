@@ -3,7 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>ПТН ПНХ</title>
+<title>PTN PNH — Defend the Sky</title>
+<meta name="description" content="Shoot the swarm. Crush every boss. Prove you can reach the end.">
+
+<!-- Open Graph / Telegram / Facebook link preview. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="PTN PNH — Defend the Sky">
+<meta property="og:description" content="Shoot the swarm. Crush every boss. Prove you can reach the end. 100 levels, 10 unique bosses.">
+<meta property="og:image" content="https://elatevol.github.io/PTNPNH/game/assets/social-preview.png">
+<meta property="og:url" content="https://elatevol.github.io/PTNPNH/game/index.html">
+
+<!-- Twitter/X card (also used as a fallback by several other link-preview bots) -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PTN PNH — Defend the Sky">
+<meta name="twitter:description" content="Shoot the swarm. Crush every boss. Prove you can reach the end.">
+<meta name="twitter:image" content="https://elatevol.github.io/PTNPNH/game/assets/social-preview.png">
+
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 <style>
@@ -40,8 +55,12 @@
   #startBtn, #watchAdBtn{ background:var(--accent); color:#1a1400; border:none; padding:14px 28px;
     font-family:inherit; font-weight:bold; letter-spacing:2px; font-size:13px; text-transform:uppercase;
     border-radius:2px; cursor:pointer; }
-  #watchAdBtn{ background:transparent; color:#5cf; border:1px solid #5cf; }
   #startBtn:active, #watchAdBtn:active{ transform:translateY(1px); }
+  #startBtn:disabled{ cursor:default; }
+  #shareIconBtn{ width:40px; height:40px; border-radius:50%; background:transparent; color:#5cf;
+    border:1px solid #5cf; font-size:16px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; margin-top:2px; }
+  #shareIconBtn:active{ transform:translateY(1px); }
   #adSimOverlay{ position:absolute; inset:0; z-index:50; background:rgba(0,0,0,0.94);
     display:flex; align-items:center; justify-content:center; }
   #adSimBox{ display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:24px; }
@@ -112,7 +131,8 @@
       <p class="sub" id="ovSub">Shoot the swarm. Crush every boss. Prove you can reach the end.</p>
       <div id="btnRow">
         <button id="startBtn">Start</button>
-        <button id="watchAdBtn" style="display:none;">▶ Watch ad · +1 shield</button>
+        <button id="watchAdBtn" style="display:none;">+1 SHIELD</button>
+        <button id="shareIconBtn" style="display:none;" title="Share">📤</button>
       </div>
     </div>
     <div id="adSimOverlay" style="display:none;">
@@ -141,9 +161,63 @@
     tg.ready(); tg.expand();
     try { tg.setBackgroundColor('#0a0e0a'); } catch(e){}
     try { tg.setHeaderColor('#0a0e0a'); } catch(e){}
+
+    // The joystick sits near the bottom edge and involves dragging - without
+    // this, a downward drag there can trigger Telegram's own "swipe down to
+    // close" gesture mid-game and accidentally kick the player out.
+    try { tg.disableVerticalSwipes(); } catch(e){}
+
+    // Ask for confirmation before Telegram closes the Mini App, so a stray
+    // tap on the system back button doesn't silently wipe an in-progress run.
+    try { tg.enableClosingConfirmation(); } catch(e){}
+
+    // Newer clients (Bot API 8.0+) support a real full-screen mode (hides
+    // Telegram's own header entirely) and locking orientation to portrait -
+    // both optional, older clients simply don't have these methods.
+    try { if (typeof tg.requestFullscreen === 'function') tg.requestFullscreen(); } catch(e){}
+    try { if (typeof tg.lockOrientation === 'function') tg.lockOrientation(); } catch(e){}
   }
 
   const SCORE_ENDPOINT = 'https://ptnpnh.onrender.com/api/score';
+
+  // =====================================================================
+  // SHARE ICON - a plain "share the game" action, no reward attached.
+  // Uses the native Web Share API (navigator.share) so the person can pick
+  // ANY app on their device - WhatsApp, SMS, email, Telegram, whatever -
+  // not just Telegram's own share dialog. The link shared is this game's
+  // own deployed URL (stripped of any debug/session query params), so it
+  // reads as a clean, short, direct link rather than a long t.me URL.
+  // =====================================================================
+  const SHARE_LINK = window.location.href.split('?')[0];
+  const SHARE_TEXT = 'I\'m defending the sky in PTN PNH \u2014 come try to beat my score!';
+
+  async function openShareSheet(){
+    if(navigator.share){
+      try{
+        await navigator.share({ title: 'PTN PNH', text: SHARE_TEXT, url: SHARE_LINK });
+        return;
+      }catch(e){
+        if(e && e.name === 'AbortError') return; // person just cancelled the share sheet - not an error
+        console.warn('navigator.share failed', e);
+      }
+    }
+    // Fallback for contexts without the Web Share API (some desktop
+    // browsers): try Telegram's own share sheet, then copy to clipboard.
+    if(tg && typeof tg.openTelegramLink === 'function'){
+      const url = 'https://t.me/share/url?url=' + encodeURIComponent(SHARE_LINK) + '&text=' + encodeURIComponent(SHARE_TEXT);
+      try{ tg.openTelegramLink(url); return; }catch(e){ console.warn('openTelegramLink failed', e); }
+    }
+    const text = SHARE_TEXT + ' ' + SHARE_LINK;
+    const msg = document.getElementById('syncMsg');
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text)
+        .then(()=>{ msg.textContent = 'Link copied — paste it to a friend!'; })
+        .catch(()=>{ msg.textContent = 'Share text: ' + text; });
+    } else {
+      msg.textContent = 'Share text: ' + text;
+    }
+  }
+  document.getElementById('shareIconBtn').addEventListener('click', openShareSheet);
 
   // =====================================================================
   // REWARDED ADS (Adsgram) - watch an ad on Game Over to get +1 shield and
@@ -289,6 +363,30 @@
   const sndLaser = new Audio('assets/laser.wav');
   const sndBoom  = new Audio('assets/explosion.wav');
   function playSfx(a, vol){ try{ const c = a.cloneNode(); c.volume = vol!=null?vol:0.6; c.play(); }catch(e){} }
+
+  // Don't let the player tap Start before the sprites/background have
+  // actually loaded - avoids a flash of missing art on the very first frame.
+  (function trackAssetLoading(){
+    const imgs = [imgPlayer, imgBullet, imgBg];
+    let pending = imgs.length;
+    const startBtnEl = document.getElementById('startBtn');
+    const originalLabel = startBtnEl.textContent;
+    startBtnEl.disabled = true;
+    startBtnEl.textContent = 'Loading…';
+    startBtnEl.style.opacity = '0.6';
+    function done(){
+      pending -= 1;
+      if(pending <= 0){
+        startBtnEl.disabled = false;
+        startBtnEl.textContent = originalLabel;
+        startBtnEl.style.opacity = '1';
+      }
+    }
+    imgs.forEach((img)=>{
+      if(img.complete) done();
+      else { img.addEventListener('load', done); img.addEventListener('error', done); }
+    });
+  })();
 
   // =====================================================================
   // ENEMY TYPE DEFINITIONS
@@ -567,6 +665,7 @@
     document.getElementById('ovSub').textContent = 'The rat is destroyed. Level ' + LAST_LEVEL + ' — game complete!';
     document.getElementById('startBtn').textContent = 'Play again';
     document.getElementById('watchAdBtn').style.display = 'none';
+    document.getElementById('shareIconBtn').style.display = 'none';
     document.getElementById('overlay').classList.remove('hidden');
     if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('success'); }
 
@@ -582,6 +681,7 @@
     spits = [];
     adRevivesUsed = 0;
     document.getElementById('watchAdBtn').style.display = 'none';
+    document.getElementById('shareIconBtn').style.display = 'none';
     updateShieldHud();
     document.getElementById('scoreVal').textContent = score;
     document.getElementById('lvlVal').textContent = level + '/' + LAST_LEVEL;
@@ -1516,6 +1616,7 @@
     // Revive progression: a rewarded ad can revive you up to 3 times per
     // run. Then it's really over.
     document.getElementById('watchAdBtn').style.display = adRevivesUsed < AD_REVIVE_MAX ? 'inline-block' : 'none';
+    document.getElementById('shareIconBtn').style.display = 'flex';
 
     document.getElementById('overlay').classList.remove('hidden');
     if(tg && tg.HapticFeedback){ tg.HapticFeedback.notificationOccurred('error'); }
@@ -1532,6 +1633,7 @@
     updateShieldHud();
     document.getElementById('overlay').classList.add('hidden');
     document.getElementById('watchAdBtn').style.display = 'none';
+    document.getElementById('shareIconBtn').style.display = 'none';
     if(boss){
       document.getElementById('bossBarWrap').style.display = 'block';
       document.getElementById('bossLabel').style.display = 'block';
@@ -1559,6 +1661,15 @@
       jumpToLevel(levelParam);
     }
   });
+
+  // Native Telegram back button (top-left, in Telegram's own header) - a
+  // consistent, expected way to exit for Mini App users instead of hunting
+  // for an in-game close control. enableClosingConfirmation() above already
+  // makes Telegram ask "are you sure?" before actually closing.
+  if(tg && tg.BackButton){
+    tg.BackButton.show();
+    tg.BackButton.onClick(()=>{ try{ tg.close(); }catch(e){} });
+  }
 
 })();
 </script>

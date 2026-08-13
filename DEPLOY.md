@@ -42,6 +42,21 @@ https://ВАШ_НІК.github.io/ptn-pnh-game/index.html
 
 Це і є ваш `GAME_URL`. **Важливо:** Mini App вимагає саме `https://` — `http://` не працюватиме.
 
+### 2.1. Заповнити meta-теги прев'ю посилання
+
+У `game/index.html` (на самому початку `<head>`) знайдіть три місця з `YOUR-GAME-DOMAIN.example.com` і замініть на ваш реальний домен із попереднього кроку:
+
+```html
+<meta property="og:image" content="https://YOUR-GAME-DOMAIN.example.com/assets/social-preview.png">
+<meta property="og:url" content="https://YOUR-GAME-DOMAIN.example.com/index.html">
+...
+<meta name="twitter:image" content="https://YOUR-GAME-DOMAIN.example.com/assets/social-preview.png">
+```
+
+Наприклад, якщо `GAME_URL` — `https://ваш_нік.github.io/ptn-pnh-game/index.html`, то підставте `https://ваш_нік.github.io/ptn-pnh-game`. Без цього кроку посилання на гру ділитиметься без картинки й опису — просто голим текстом URL. Закомітьте й запуште зміну.
+
+Готова картинка для прев'ю вже лежить у `game/assets/social-preview.png` (1200×630, під стандарт Open Graph) — можна замінити своєю, якщо захочете інший вигляд.
+
 ---
 
 ## Крок 3. Налаштувати й задеплоїти бота (Render.com, безкоштовно)
